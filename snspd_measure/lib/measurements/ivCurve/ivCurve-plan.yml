@@ -1,0 +1,51 @@
+#=============== IV Curve Measurement Configuration ===============#
+
+measurement:
+  start_V: 0
+  end_V: 1.4
+  step_V: 0.005
+  bias_resistance: 100e3
+  voltage_source_1: vsource_1
+  voltage_source_2: vsource_2
+  voltage_sense_1: vsense_1
+  voltage_sense_2: vsense_2
+
+instruments:
+  Sim900:
+    port: /dev/ttyUSB0
+    gpibAddr: 2
+    modules:
+      - slot: 3
+        type: sim928
+        offline: false
+        settlingTime: 0.4 # seconds
+        attribute: vsource_1
+      - slot: 4
+        type: sim970
+        offline: false
+        channel: 1
+        attribute: vsense_1
+
+  Dbay:
+    ip_address: 10.7.0.3
+    port: 9000
+    modules:
+      - slot: 5
+        type: dac4D
+        channel: 2
+        attribute: vsource_2
+      - slot: 7
+        type: acd4D
+        channel: 4
+        attribute: vsense_2
+
+saver:
+  file_saver:
+    type: json
+    file_path: "./data/ivcurve_DC"
+    include_timestamp: true
+    include_metadata: true
+
+plotter:
+  web_plotter:
+    address: "http://localhost:5000"

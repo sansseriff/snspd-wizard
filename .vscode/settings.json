@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.py.template": "python",
+        "*.py.tmpl": "python"
+    },
+    "python-envs.pythonProjects": []
+}

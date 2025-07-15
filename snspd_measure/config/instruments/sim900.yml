@@ -1,0 +1,23 @@
+# this file defines what mainframes (sim900) and submodules acctually exist in the lab
+
+- port: /dev/ttyUSB0
+  gpibAddr: 2
+  baudrate: 9600
+  timeout: 1.0
+  modules:
+    - slot: 1
+      type: sim928
+      offline: false
+      settlingTime: 0.4 # seconds
+    - slot: 2
+      type: sim928
+      offline: false
+      settlingTime: 0.4 # seconds
+    - slot: 3
+      type: sim928
+      offline: false
+      settlingTime: 0.4 # seconds
+    - slot: 4
+      type: sim970
+      offline: false
+      channel: 1

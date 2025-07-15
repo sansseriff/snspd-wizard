@@ -1,0 +1,21 @@
+[project]
+name = "snspd-measure-new"
+version = "0.1.0"
+description = "Rewritten SNSPD measurement library"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+ "matplotlib",
+ "pyvisa",
+ "pyserial",
+ "h5py",
+ "pyyaml",
+ "pydantic>=2.10.6",
+]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["instruments*", "measurements*", "utilities*"]
