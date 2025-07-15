@@ -20,12 +20,7 @@ from lib.plotters.genericPlotter import GenericPlotter
 
 ####################### subclasses of generic instruments here #######################
 
-# to add
-# from lib.instruments.{{voltage_source_class}} import {{voltage_source_class}}
-# from lib.instruments.{{current_meter_class}} import {{current_meter_class}}
-
-
-# and mainframe classes. Haven't figured that how yet.
+# CLI automatically added imports go here
 
 
 ######################################################################################
@@ -58,7 +53,7 @@ class IVCurveResources(YamlClass):
 
 
 # Initialize instrument configurations from YAML
-def create_instrument_config():
+def create_instrument_resources():
     """Create instrument instances from YAML configuration"""
 
     # Extract instrument-specific configs from the complete YAML
@@ -71,54 +66,21 @@ def create_instrument_config():
 
     ####################### instantiation of subclasses here #######################
 
-    # to fill
-
-    # voltage_source = ({{voltage_source_class}}(**voltage_source_config) if voltage_source_config else {{voltage_source_class}}())
-    # voltage_sense = ({{voltage_sense_class}}(**voltage_sense_config) if voltage_sense_config else {{voltage_sense_class}}())
-
     # to delete
-    voltage_source = StandInGenericSource(**voltage_source_config)
-    voltage_sense = StandInGenericSense(**voltage_sense_config)
+    voltage_source_1 = StandInGenericSource(**voltage_source_config)
+    voltage_sense_1 = StandInGenericSense(**voltage_sense_config)
 
-    top = from_yaml("/path/to/file")
-
-    instruments: InstrumentParams = create_params_from_spec(top, key="instruments")
-
-    mainframe_params: Sim900Params = create_params_from_spec(instruments, key="sim900")
-
-    mainframe_1 = Sim900(mainframe_params)
-
-    vsource_1_params: Sim928Params = create_params_from_attribute(
-        mainframe_params.modules, attribute="vsource_1"
-    )
-
-    voltage_source_1 = mainframe_1.create_submodule(vsource_1_params)
-
-    vsense_1_params: Sim970Params = create_params_from_attribute(
-        mainframe_params.modules, attribute="vsense_1"
-    )
-
-    voltage_sense_1 = mainframe_1.create_submodule(vsense_1_params)
-
-    dbay_params: DbayParams = create_params_from_spec(instruments, "Dbay")
-
-    mainframe_2 = Dbay(dbay_params)
-
-    vsource_2_params: Dac4DParams = create_params_from_attribute(
-        dbay_params.modules, "vsource_2"
-    )
-
-    voltage_source_2 = mainframe_2.create_submodule(vsource_2_params)
-
-    vsense_2_params: Adc4DParams = create_params_from_attribute(
-        dbay_params.modules, "vsense_2"
-    )
-
-    voltage_sense_2 = mainframe_2.create_submodule(vsense_2_params)
+    # to fill, CLI output goes here
 
     ######################################################################################
 
-    return InstrumentConfig(voltage_source=voltage_source, voltage_sense=voltage_sense)
+    return IVCurveResources(
+        saver=GenericSaver(),
+        plotter=GenericPlotter(),
+        voltage_source=voltage_source_1,
+        voltage_sense=voltage_sense_1,
+        params=measurement_params,
+    )
 
 
 if __name__ == "__main__":
@@ -130,43 +92,9 @@ if __name__ == "__main__":
     measurement_params = IVCurveParams.from_yaml("ivCurve_params.yml")
 
     # Create the complete measurement setup
-    instruments = create_instrument_config()
+    resources = create_instrument_resources()
 
     # Create measurement instance
-    measurement = IVCurveMeasurement(
-        params=measurement_params,
-        voltage_source=instruments.voltage_source,
-        voltage_sense=instruments.voltage_sense,
-        output_dir=Path("./data"),
-    )
+    measurement = IVCurveMeasurement(resources)
 
     measurement.run_measurement()
-
-
-# Example configurations for different measurement scenarios:
-
-# Quick test measurement
-# measurement_params = IVCurveParams(
-#     start_voltage=0.0,
-#     end_voltage=0.5,        # Lower max voltage
-#     step_voltage=0.02,      # Larger steps for speed
-#     settling_time=0.005,    # Faster settling
-#     bias_resistance=100e3,
-#     enable_plotting=True,
-#     save_data=False         # Don't save for quick tests
-# )
-
-# Low current device (high bias resistance)
-# measurement_params = IVCurveParams(
-#     start_voltage=0.0,
-#     end_voltage=3.0,        # Higher voltage for low current devices
-#     step_voltage=0.01,
-#     settling_time=0.02,
-#     bias_resistance=1e6,    # 1 MΩ bias resistor
-#     enable_plotting=True,
-#     save_data=True
-# )
-
-# Example usage:
-# results = measurement.run_measurement()
-# measurement.save_data(results)

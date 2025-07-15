@@ -1,17 +1,25 @@
-from dbay.http import Http
+from snspd_measure.lib.instruments.dbay.comm import Comm
 from dbay.addons.vsource import VsourceChange
 from dbay.state import IModule, Core
 from typing import Literal
-from dbay.addons.vsource import IVsourceAddon
+from dbay.addons.vsource import IVsourceAddon, ChSourceState
+from dbay.addons.vsense import ChSenseState
 from typing import Union
 from lib.instruments.general.submodule import Submodule
 from lib.instruments.dbay.dbay import DBay
 
 from typing import Any
+from dataclasses import dataclass
 
 
 class dac4D_spec(IModule):
     module_type: Literal["dac4D"] = "dac4D"
+    core: Core
+    vsource: IVsourceAddon
+
+
+@dataclass
+class dac4DParams:
     core: Core
     vsource: IVsourceAddon
 
@@ -21,7 +29,7 @@ class dac4D(Submodule):
     def mainframe_class(self) -> type[DBay]:
         return DBay
 
-    def __init__(self, data: dict[str, Any], comm: Http):
+    def __init__(self, data: dict[str, Any], comm: Comm):
         self.comm = comm
         self.data = dac4D_spec(**data)
 

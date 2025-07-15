@@ -1,9 +1,15 @@
-from dbay.http import Http
+from snspd_measure.lib.instruments.dbay.comm import Http
 from dbay.addons.vsource import VsourceChange, SharedVsourceChange
 from dbay.state import IModule, Core
 from typing import Literal, Union, List
-from dbay.addons.vsource import IVsourceAddon
+from dbay.addons.vsource import IVsourceAddon, ChSourceState
 from dbay.addons.vsense import ChSenseState
+
+from lib.instruments.general.submodule import Submodule
+from lib.instruments.dbay.dbay import DBay
+from lib.instruments.dbay.comm import Comm
+
+from dataclasses import dataclass
 
 
 class dac16D_spec(IModule):
@@ -11,13 +17,25 @@ class dac16D_spec(IModule):
     core: Core
     vsource: IVsourceAddon
     vsb: dict  # Assuming vsb structure from backend
-    vr: dict   # Assuming vr structure from backend
+    vr: dict  # Assuming vr structure from backend
 
 
-class dac16D:
-    def __init__(self, data, http: Http):
-        self.http = http
+@dataclass
+class dac16DParams:
+    core: Core
+    vsource: IVsourceAddon
+    vsb: ChSourceState
+    vr: ChSenseState
+
+
+class dac16D(Submodule):
+    def __init__(self, data, comm: Comm):
+        self.comm = comm
         self.data = dac16D_spec(**data)
+
+    @property
+    def mainframe_class(self) -> type[DBay]:
+        return DBay
 
     def __del__(self):
         print("Cleaning up dac16D instance.")
@@ -33,7 +51,7 @@ class dac16D:
                 measuring=False,
             )
 
-            self.http.put("dac16D/vsource/", data=change.model_dump())
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
 
     def __str__(self):
         """Return a pretty string representation of the dac16D module."""
@@ -41,7 +59,9 @@ class dac16D:
         active_channels = sum(1 for ch in self.data.vsource.channels if ch.activated)
         return f"dac16D (Slot {slot}): {active_channels}/16 channels active"
 
-    def voltage_set(self, index: int, voltage: float, activated: Union[bool, None] = None):
+    def voltage_set(
+        self, index: int, voltage: float, activated: Union[bool, None] = None
+    ):
         if activated is None:
             activated = self.data.vsource.channels[index].activated
         change = VsourceChange(
@@ -53,9 +73,11 @@ class dac16D:
             measuring=True,
         )
 
-        self.http.put("dac16D/vsource/", data=change.model_dump())
+        self.comm.put("dac16D/vsource/", data=change.model_dump())
 
-    def voltage_set_shared(self, voltage: float, activated: bool = True, channels: List[bool] = None):
+    def voltage_set_shared(
+        self, voltage: float, activated: bool = True, channels: List[bool] | None = None
+    ):
         """
         Set same voltage to multiple channels at once
         """
@@ -72,12 +94,9 @@ class dac16D:
             measuring=True,
         )
 
-        shared_change = SharedVsourceChange(
-            change=change,
-            link_enabled=channels
-        )
+        shared_change = SharedVsourceChange(change=change, link_enabled=channels)
 
-        self.http.put("dac16D/vsource_shared/", data=shared_change.model_dump())
+        self.comm.put("dac16D/vsource_shared/", data=shared_change.model_dump())
 
     def set_vsb(self, voltage: float, activated: bool = True):
         """
@@ -92,10 +111,4 @@ class dac16D:
             measuring=True,
         )
 
-        self.http.put("dac16D/vsb/", data=change.model_dump())
-
-    def connect_vsense_websocket(self, callback):
-        """
-        Connect to the vsense websocket to receive voltage readings
-        """
-        return self.http.websocket_connect(f"dac16D/ws_vsense/", callback)
+        self.comm.put("dac16D/vsb/", data=change.model_dump())

@@ -2,7 +2,7 @@ import requests
 from typing import Any
 
 
-class Http:
+class Comm:
     def __init__(self, server_address: str, port: int):
         self.server_address = server_address
         self.port = port

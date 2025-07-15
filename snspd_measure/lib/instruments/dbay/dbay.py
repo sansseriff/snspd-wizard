@@ -1,12 +1,12 @@
 from dbay.modules.dac4d import dac4D
 from dbay.modules.dac16d import dac16D
 from dbay.modules.empty import Empty
-from dbay.http import Http
+from snspd_measure.lib.instruments.dbay.comm import Comm
 import time
 from typing import List, Union
 
 from lib.instruments.general.genericMainframe import GenericMainframe
-from lib.instruments.general.submodule import Submodule
+from lib.instruments.general.submodule import Submodule, SubmoduleParams
 from typing import Any
 
 
@@ -16,55 +16,12 @@ class DBayParams:
     port: int = 8345
 
 
-@dataclass
-class ChSourceState:
-    index: int
-    bias_voltage: float
-    activated: bool
-    heading_text: str
-    measuring: bool
-
-
-@dataclass
-class IVsourceAddon:
-    channels: list[ChSourceState]
-
-
-@dataclass
-class Core:
-    slot: int
-    type: str
-    name: str
-
-
-@dataclass
-class dac4DParams:
-    core: Core
-    vsource: IVsourceAddon
-
-
-@dataclass
-class ChSenseState:
-    index: int
-    voltage: float
-    measuring: bool
-    name: str
-
-
-@dataclass
-class dac16DParams:
-    core: Core
-    vsource: IVsourceAddon
-    vsb: ChSourceState
-    vr: ChSenseState
-
-
 class DBay(GenericMainframe):
     def __init__(self, server_address: str, port: int = 8345):
         self.server_address = server_address
         self.port = port
         self.modules: List[Union[dac4D, dac16D, Empty]] = [None] * 8
-        self.comm = Http(server_address, port)
+        self.comm = Comm(server_address, port)
         self.load_full_state()
 
     def load_full_state(self):
@@ -81,9 +38,13 @@ class DBay(GenericMainframe):
             else:
                 self.modules[i] = Empty()
 
-    def create_submodule(self, params: dac4DParams | dac16DParams) -> Submodule:
-        slot = params.core.slot
-        module_type = params.core.type
+    def create_submodule(self, params: SubmoduleParams) -> Submodule:
+        #
+        slot = params.slot
+        module_type = params.type
+
+        # slot = params.core.slot
+        # module_type = params.core.type
 
         # get handle to already-instantiated module
 
