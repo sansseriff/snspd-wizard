@@ -18,10 +18,46 @@ from typing import Any, Dict, Optional
 
 from lib.instruments.general.serialInst import GPIBmodule
 from lib.instruments.general.genericMainframe import GenericMainframe
-from lib.instruments.general.submodule import Submodule
+from lib.instruments.general.submodule import Submodule, SubmoduleParams
 
-from lib.instruments.general.genericSource import GenericSource
-from lib.instruments.general.genericSense import GenericSense
+
+from lib.instruments.sim900.comm import Comm
+from lib.instruments.sim900.modules.sim928 import Sim928
+from lib.instruments.sim900.modules.sim970 import Sim970
+from lib.instruments.sim900.modules.sim921 import Sim921
+from pydantic import BaseModel, Field
+from typing import ClassVar
+
+
+class Sim921Params(SubmoduleParams):
+    """Parameters for SIM921 resistance bridge module"""
+
+    slot: ClassVar[int]
+    type: ClassVar[str] = "sim921"
+    offline: bool | None = False
+    settling_time: float | None = 0.1
+    attribute: str | None = None
+
+
+class Sim928Params(SubmoduleParams):
+    """Parameters for SIM928 voltage source module"""
+
+    slot: ClassVar[int]
+    type: ClassVar[str] = "sim928"
+    offline: bool | None = False
+    settling_time: float | None = 0.4
+    attribute: str | None = None
+
+
+class Sim970Params(SubmoduleParams):
+    """Parameters for SIM970 voltmeter module"""
+
+    slot: ClassVar[int]
+    type: ClassVar[str] = "sim970"
+    channel: int | None = 1
+    offline: bool | None = False
+    settling_time: float | None = 0.1
+    attribute: str | None = None
 
 
 class Sim900Params(BaseModel):
@@ -31,6 +67,7 @@ class Sim900Params(BaseModel):
     gpibAddr: int = 2
     timeout: Optional[float] = 1.0
     baudrate: Optional[int] = 9600
+    modules: Sim928Params | Sim970Params | Sim921Params = Field(discriminator="type")
 
 
 class Sim900(GenericMainframe):
@@ -51,9 +88,7 @@ class Sim900(GenericMainframe):
         self.kwargs = kwargs
         self.modules: Dict[int, Submodule] = {}
 
-    def create_submodule(
-        self, params: Sim970Params | Sim928Params | Sim921Params
-    ) -> Submodule:
+    def create_submodule(self, params: SubmoduleParams) -> Submodule:
         """
         Create a submodule with the given parameters
         :param params: Parameters containing module type, slot, and configuration
@@ -63,7 +98,7 @@ class Sim900(GenericMainframe):
         slot = params.slot
 
         # Create communication object for this slot
-        comm = Sim900Comm(self.port, self.gpibAddr, slot, **self.kwargs)
+        comm = Comm(self.port, self.gpibAddr, slot, **self.kwargs)
 
         # Create the appropriate submodule based on type
         if module_type == "sim970" and isinstance(params, Sim970Params):

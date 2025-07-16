@@ -1,12 +1,10 @@
-from snspd_measure.lib.instruments.dbay.comm import Http
-from dbay.addons.vsource import VsourceChange, SharedVsourceChange
-from dbay.state import IModule, Core
+from lib.instruments.dbay.addons.vsource import VsourceChange, SharedVsourceChange
+from lib.instruments.dbay.state import IModule, Core
 from typing import Literal, Union, List
-from dbay.addons.vsource import IVsourceAddon, ChSourceState
-from dbay.addons.vsense import ChSenseState
+from lib.instruments.dbay.addons.vsource import IVsourceAddon, ChSourceState
+from lib.instruments.dbay.addons.vsense import ChSenseState
 
 from lib.instruments.general.submodule import Submodule
-from lib.instruments.dbay.dbay import DBay
 from lib.instruments.dbay.comm import Comm
 
 from dataclasses import dataclass
@@ -34,8 +32,8 @@ class dac16D(Submodule):
         self.data = dac16D_spec(**data)
 
     @property
-    def mainframe_class(self) -> type[DBay]:
-        return DBay
+    def mainframe_class(self) -> str:
+        return "lib.instruments.dbay.dbay.DBay"
 
     def __del__(self):
         print("Cleaning up dac16D instance.")

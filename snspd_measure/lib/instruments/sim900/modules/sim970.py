@@ -5,23 +5,11 @@ from lib.instruments.general.genericSense import GenericSense
 from lib.instruments.general.submodule import Submodule
 
 from lib.instruments.sim900.comm import Comm
-from pydantic import BaseModel
 
-from lib.instruments.sim900.sim900 import Sim900
+from lib.instruments.sim900.sim900 import Sim900, Sim970Params
 import time
 
 import numpy as np
-
-
-class Sim970Params(BaseModel):
-    """Parameters for SIM970 voltmeter module"""
-
-    slot: int
-    type: str = "sim970"
-    channel: Optional[int] = 1
-    offline: Optional[bool] = False
-    settling_time: Optional[float] = 0.1
-    attribute: Optional[str] = None
 
 
 class Sim970(Submodule, GenericSense):
@@ -41,8 +29,8 @@ class Sim970(Submodule, GenericSense):
         self.attribute = params.attribute
 
     @property
-    def mainframe_class(self) -> type[GenericMainframe]:
-        return Sim900
+    def mainframe_class(self) -> str:
+        return "lib.instruments.sim900.sim900.Sim900"
 
     def getVoltage(self, ch: Optional[int] = None, _recurse: int = 0) -> float:
         """

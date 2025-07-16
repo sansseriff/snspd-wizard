@@ -1,12 +1,10 @@
-from snspd_measure.lib.instruments.dbay.comm import Comm
-from dbay.addons.vsource import VsourceChange
-from dbay.state import IModule, Core
+from lib.instruments.dbay.comm import Comm
+from lib.instruments.dbay.addons.vsource import VsourceChange
+from lib.instruments.dbay.state import IModule, Core
 from typing import Literal
-from dbay.addons.vsource import IVsourceAddon, ChSourceState
-from dbay.addons.vsense import ChSenseState
+from lib.instruments.dbay.addons.vsource import IVsourceAddon
 from typing import Union
 from lib.instruments.general.submodule import Submodule
-from lib.instruments.dbay.dbay import DBay
 
 from typing import Any
 from dataclasses import dataclass
@@ -26,8 +24,8 @@ class dac4DParams:
 
 class dac4D(Submodule):
     @property
-    def mainframe_class(self) -> type[DBay]:
-        return DBay
+    def mainframe_class(self) -> str:
+        return "lib.instruments.dbay.dbay.DBay"
 
     def __init__(self, data: dict[str, Any], comm: Comm):
         self.comm = comm

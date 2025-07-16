@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from lib.instruments.general.genericMainframe import GenericMainframe
+from pydantic import BaseModel, Field
 
 
 class Submodule(ABC):
@@ -8,13 +9,13 @@ class Submodule(ABC):
 
     @property
     @abstractmethod
-    def mainframe_class(self) -> type[GenericMainframe]:
+    def mainframe_class(self) -> str:
         """Subclasses must override this property to specify the mainframe class."""
         pass
 
 
 @dataclass
-class SubmoduleParams(ABC):
+class SubmoduleParams(BaseModel, ABC):
     @property
     @abstractmethod
     def type(self) -> str:

@@ -1,13 +1,14 @@
-from dbay.modules.dac4d import dac4D
-from dbay.modules.dac16d import dac16D
-from dbay.modules.empty import Empty
-from snspd_measure.lib.instruments.dbay.comm import Comm
-import time
+from lib.instruments.dbay.modules.dac4d import dac4D
+from lib.instruments.dbay.modules.dac16d import dac16D
+from lib.instruments.dbay.modules.empty import Empty
+from lib.instruments.dbay.comm import Comm
+
 from typing import List, Union
 
 from lib.instruments.general.genericMainframe import GenericMainframe
 from lib.instruments.general.submodule import Submodule, SubmoduleParams
 from typing import Any
+from dataclasses import dataclass
 
 
 @dataclass
@@ -20,7 +21,7 @@ class DBay(GenericMainframe):
     def __init__(self, server_address: str, port: int = 8345):
         self.server_address = server_address
         self.port = port
-        self.modules: List[Union[dac4D, dac16D, Empty]] = [None] * 8
+        self.modules: List[Union[dac4D, dac16D, Empty]] = [Empty() for _ in range(16)]
         self.comm = Comm(server_address, port)
         self.load_full_state()
 

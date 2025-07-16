@@ -5,22 +5,8 @@ from lib.instruments.general.genericSource import GenericSource
 from lib.instruments.general.submodule import Submodule
 
 from lib.instruments.sim900.comm import Comm
-from pydantic import BaseModel
 
-from lib.instruments.sim900.sim900 import Sim900
-import time
-
-import numpy as np
-
-
-class Sim928Params(BaseModel):
-    """Parameters for SIM928 voltage source module"""
-
-    slot: int
-    type: str = "sim928"
-    offline: Optional[bool] = False
-    settling_time: Optional[float] = 0.4
-    attribute: Optional[str] = None
+from lib.instruments.sim900.sim900 import Sim900, Sim928Params
 
 
 class Sim928(Submodule, GenericSource):
@@ -39,8 +25,8 @@ class Sim928(Submodule, GenericSource):
         self.attribute = params.attribute
 
     @property
-    def mainframe_class(self) -> type["GenericMainframe"]:
-        return Sim900
+    def mainframe_class(self) -> str:
+        return "lib.instruments.sim900.sim900.Sim900"
 
     def setVoltage(self, voltage: float) -> int | bool | None:
         """

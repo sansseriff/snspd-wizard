@@ -1,3 +1,11 @@
 projects/
 
 !projects/.gitkeep
+
+
+# ignore all __pycache__ directories
+**/__pycache__/
+
+
+# ignore all .egg-info directories
+**/*.egg-info/

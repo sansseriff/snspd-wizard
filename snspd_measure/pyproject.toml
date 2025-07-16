@@ -11,6 +11,7 @@ dependencies = [
     "h5py",
     "pyyaml",
     "pydantic>=2.10.6",
+    "requests>=2.32.4",
 ]
 
 [build-system]

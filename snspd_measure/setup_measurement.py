@@ -12,6 +12,8 @@ Author: Generated for SNSPD Library Restructure
 Date: June 2025
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import shutil
@@ -29,6 +31,7 @@ from abc import ABC, abstractmethod
 # Import the actual base classes from the instrument modules
 from instruments.general.genericSource import GenericSource
 from instruments.general.genericSense import GenericSense, GenericCounter
+from snspd_measure.lib.instruments.general.genericMainframe import GenericMainframe
 
 
 @dataclass
@@ -37,19 +40,28 @@ class MeasurementInfo:
 
     name: str
     description: str
-    required_instruments: Dict[str, Type]
+    required_instruments: Dict[str, Type[Any]]
     measurement_dir: Path
 
+@dataclass
+class ParentResource:
+    class_name: str
+    class_obj: Type[Any] | None = None
+    params_obj: Type[Any] | None = None
+    parent: ParentResource | None = None
 
 @dataclass
 class InstrumentInfo:
     """Information about available instruments"""
-
     display_name: str
     class_name: str
     module_name: str
     file_path: Path
     class_obj: Type[Any]
+    params_obj: Type[Any] | None = None
+    parent: ParentResource | None = None
+
+
 
 
 class MeasurementSetup:
@@ -73,8 +85,6 @@ class MeasurementSetup:
         """Discover instruments that inherit from the given base class."""
         instruments = {}
         errors = []
-
-        ######### HERE July 9th EOD
 
         # Look for Python files in the directory and subdirectories
         for py_file in instrument_dir.rglob("*.py"):
@@ -210,162 +220,6 @@ class MeasurementSetup:
 
         return instruments_list[choice][1]
 
-    def copy_files_to_project(
-        self,
-        project_dir: Path,
-        selected_instruments: Dict[str, InstrumentInfo],
-        measurement_info: MeasurementInfo,
-    ):
-        """Copy necessary files to the project directory."""
-
-        # Create subdirectories
-        instruments_subdir = project_dir / "instruments"
-        instruments_subdir.mkdir(exist_ok=True)
-
-        # Copy instrument files and their dependencies
-        for role, instrument in selected_instruments.items():
-            # Copy Python file
-            dst_py = instruments_subdir / instrument.file_path.name
-            shutil.copy2(instrument.file_path, dst_py)
-
-            # Copy YAML file if it exists
-            if instrument.yaml_path and instrument.yaml_path.exists():
-                dst_yaml = instruments_subdir / instrument.yaml_path.name
-                shutil.copy2(instrument.yaml_path, dst_yaml)
-                print(
-                    f"✓ Copied {instrument.file_path.name} + {instrument.yaml_path.name}"
-                )
-            else:
-                print(f"✓ Copied {instrument.file_path.name} (no YAML found)")
-
-        # Copy base classes and dependencies
-        self._copy_instrument_dependencies(instruments_subdir, selected_instruments)
-
-        # Copy measurement script
-        measurement_script = (
-            measurement_info.measurement_dir / f"{measurement_info.name}.py"
-        )
-        if measurement_script.exists():
-            dst_script = project_dir / measurement_script.name
-            shutil.copy2(measurement_script, dst_script)
-            print(f"✓ Copied {measurement_script.name}")
-
-        # Generate measurement parameters file
-        self.generate_measurement_params(
-            project_dir, selected_instruments, measurement_info
-        )
-
-    def generate_measurement_params(
-        self,
-        project_dir: Path,
-        selected_instruments: Dict[str, InstrumentInfo],
-        measurement_info: MeasurementInfo,
-    ):
-        """Generate the measurement parameters file from template."""
-
-        template_path = (
-            measurement_info.measurement_dir
-            / f"{measurement_info.name}Params.template.py"
-        )
-        if not template_path.exists():
-            # Create a basic template if none exists
-            self.create_basic_template(
-                project_dir, selected_instruments, measurement_info
-            )
-            return
-
-        # Read template and substitute instrument information
-        with open(template_path, "r") as f:
-            template_content = f.read()
-
-        # Prepare substitution variables
-        substitutions = {"date": datetime.now().strftime("%B %d, %Y")}
-
-        # Add instrument-specific substitutions for each role
-        for role, instrument in selected_instruments.items():
-            # Get the module name (without .py extension)
-            module_name = instrument.file_path.stem
-            class_name = instrument.class_name
-            class_name_lower = class_name.lower()
-
-            # Add substitutions for each instrument role
-            substitutions[f"{role}_module"] = module_name
-            substitutions[f"{role}_class"] = class_name
-            substitutions[f"{role}_class_lower"] = class_name_lower
-
-        # Perform substitution using double-brace template syntax
-        try:
-            filled_content = template_content
-            for key, value in substitutions.items():
-                filled_content = filled_content.replace(f"{{{{{key}}}}}", str(value))
-        except Exception as e:
-            print(
-                f"Warning: Template substitution failed for {e}. Creating basic template."
-            )
-            self.create_basic_template(
-                project_dir, selected_instruments, measurement_info
-            )
-            return
-
-        # Write the filled template
-        output_path = project_dir / f"{measurement_info.name}Params.py"
-        with open(output_path, "w") as f:
-            f.write(filled_content)
-
-        print(f"✓ Generated {output_path.name}")
-        print(
-            f"📝 Edit {output_path.name} to configure measurement and instrument parameters"
-        )
-
-    def create_basic_template(
-        self,
-        project_dir: Path,
-        selected_instruments: Dict[str, InstrumentInfo],
-        measurement_info: MeasurementInfo,
-    ):
-        """Create a basic measurement parameters file."""
-
-        content = f'''"""
-Generated measurement parameters for {measurement_info.name}
-"""
-
-from dataclasses import dataclass
-'''
-
-        # Add imports for selected instruments
-        for role, instrument in selected_instruments.items():
-            content += f"from instruments.{instrument.file_path.stem} import {instrument.class_name}\n"
-
-        content += f'''
-
-@dataclass
-class MeasurementConfig:
-    """Configuration for {measurement_info.name} measurement"""
-'''
-
-        # Add instrument instances
-        for role, instrument in selected_instruments.items():
-            content += f"    {role}: {instrument.class_name} = None\n"
-
-        content += '''
-    def __post_init__(self):
-        """Initialize instruments with their configurations"""
-'''
-
-        for role, instrument in selected_instruments.items():
-            if instrument.yaml_path:
-                content += f"        # Load {role} configuration from YAML\n"
-                content += f"        self.{role} = {instrument.class_name}()\n"
-            else:
-                content += f"        self.{role} = {instrument.class_name}()\n"
-
-        # Write the file
-        output_path = project_dir / f"{measurement_info.name}Params.py"
-        with open(output_path, "w") as f:
-            f.write(content)
-
-        print(f"✓ Generated {output_path.name}")
-
     def setup_measurement(self, measurement_name: str = None):
         """Main setup workflow."""
         print("🔬 SNSPD Measurement Setup Tool")
@@ -410,7 +264,7 @@ class MeasurementConfig:
         print(f"Description: {selected_measurement.description}")
 
         # Discover and select instruments
-        selected_instruments = {}
+        selected_instruments: dict[str, InstrumentInfo] = {}
         for role, base_class in selected_measurement.required_instruments.items():
             print(f"\n🔍 Discovering {role} instruments...")
             available = self.discover_instruments(self.instruments_dir, base_class)
@@ -419,29 +273,58 @@ class MeasurementConfig:
                 print(f"❌ No compatible {role} instruments found.")
                 return
 
-            selected_instruments[role] = self.select_instrument(role, available)
 
-        # Create project directory
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        project_name = f"{selected_measurement.name}_{timestamp}"
-        project_dir = self.projects_dir / project_name
-        project_dir.mkdir(exist_ok=True)
+            selected = self.select_instrument(role, available)
 
-        print(f"\n📁 Creating project directory: {project_dir}")
+            if selected.class_obj.mainframe_class:
+                # the instrument is a submodule in a mainframe
+                # store the mainframe class in InstrumentInfo
+                selected.mainframe_class = selected.class_obj.mainframe_class
 
-        self.combine_yaml_files(selected_measurement, selected_instruments, project_dir)
+            selected_instruments[role] = selected
 
-        # Copy files and generate config
-        print("\n📄 Copying files...")
-        self.copy_files_to_project(
-            project_dir, selected_instruments, selected_measurement
-        )
 
-        print(f"\n✅ Measurement setup complete!")
-        print(f"📁 Working directory: {project_dir}")
-        print(f"\n🚀 You can now run your measurement from: {project_dir}")
+        # for each instrument in selected_instruments, check if it can be created based on the lab status
 
-        return project_dir
+        for role, instrument_info in selected_instruments.items():
+            if instrument_info.mainframe_class:
+                # load the corresponding yaml from the ./config/instruments directory
+
+
+        # now, loop over the selected_instruments and see if multiple 
+
+        # now selected_instruments has a mapping of roles to instrument instances
+        # but these are still instruments which may exist on their own or as submodules in
+        # a mainframe.
+
+        # wee need to loop over the selected_instruments, and check if each is a submodule
+        # in a mainframe
+
+        # submodules have a parameter mainframe_class like this:
+
+        # @property
+        # def mainframe_class(self) -> type["GenericMainframe"]:
+        #    return Sim900
+
+        # so, for instrument in selected_instruments, we need to check if it has a mainframe_class
+        for instrument in selected_instruments.values():
+            if instrument.mainframe_class:
+                selected_instruments
+
+
+
+    def recursively_load_yaml(self, yaml_path: Path): 
+
+        """Recursively load YAML files and return the data."""
+        if not yaml_path.exists():
+            print(f"Warning: {yaml_path} does not exist.")
+            return {}
+
+        with open(yaml_path, "r") as f:
+            try:
+                data = yaml.safe_load(f) or {}
+                
+                # todo
 
     def combine_yaml_files(
         self,
@@ -562,6 +445,20 @@ class MeasurementConfig:
             module = importlib.import_module(module_name)
 
             # Find the Resources dataclass
+            '''
+            Looking for something like:
+
+            @dataclass
+            class IVCurveResources(YamlClass):
+                """Pure measurement parameters for IV curve measurements"""
+
+                saver: GenericSaver
+                plotter: GenericPlotter
+                voltage_source: GenericSource
+                voltage_sense: GenericSense
+                params: IVCurveParams
+            
+            '''
             resources_class = None
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 if (
@@ -580,6 +477,7 @@ class MeasurementConfig:
             for field_name, field_type in resources_class.__annotations__.items():
                 # Skip non-instrument fields
                 if field_name in ["saver", "plotter", "params"]:
+                    # TODO: come back to these later
                     continue
 
                 required_instruments[field_name] = field_type
@@ -645,6 +543,23 @@ class MeasurementConfig:
                 target_file.parent.mkdir(parents=True, exist_ok=True)
                 if not target_file.exists():
                     shutil.copy2(init_file, target_file)
+
+
+def find_dict_by_nested_attribute(instruments: str, attribute_name: str):
+    """
+    Recursively searches through the instruments list to find the instrument
+    with a nested attribute matching the given attribute_name.
+    """
+    for instrument in instruments:
+        if isinstance(instrument, dict):
+            for key, value in instrument.items():
+                if key == "attribute" and value == attribute_name:
+                    return instrument
+                elif isinstance(value, (list, dict)):
+                    result = find_dict_by_nested_attribute(value, attribute_name)
+                    if result:
+                        return result
+    return None
 
 
 def main():

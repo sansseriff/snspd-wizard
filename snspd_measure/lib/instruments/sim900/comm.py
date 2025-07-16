@@ -1,4 +1,4 @@
-from snspd_measure.lib.instruments.general.serialInst import GPIBmodule
+from lib.instruments.general.serialInst import GPIBmodule
 from typing import Any
 
 
