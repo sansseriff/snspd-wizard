@@ -1,10 +1,23 @@
-from lib.instruments.general.submodule import Submodule
+from lib.instruments.general.submodule import Submodule, SubmoduleParams
+from lib.instruments.dbay.state import Core
+from typing import Literal
 
 
-class Empty(Submodule):
-    def __init__(self):
+class EmptyParams(SubmoduleParams):
+    type: Literal["empty"] = "empty"
+    slot: int
+    name: str
+
+
+class Empty(Submodule[EmptyParams]):
+    def __init__(self, data: dict = None):
         """Initialize an empty module."""
-        pass
+        if data:
+            self.data = EmptyParams(**data)
+            # Construct core object from flattened data
+            self.core = Core(
+                slot=self.data.slot, type=self.data.type, name=self.data.name
+            )
 
     def __str__(self):
         """Return a pretty string representation of the Empty module."""
@@ -13,6 +26,3 @@ class Empty(Submodule):
     @property
     def mainframe_class(self) -> str:
         return "lib.instruments.dbay.dbay.DBay"
-
-    def some_placeholder_method(self):
-        pass  # This method can be implemented later if needed.

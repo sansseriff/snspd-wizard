@@ -1,27 +1,29 @@
-from lib.instruments.dbay.modules.dac4d import dac4D
-from lib.instruments.dbay.modules.dac16d import dac16D
-from lib.instruments.dbay.modules.empty import Empty
 from lib.instruments.dbay.comm import Comm
+from typing import List
+from lib.instruments.general.mainframe import Mainframe, MainframeParams
+from typing import Any, Annotated, Union
+from pydantic import Field
 
-from typing import List, Union
+from lib.instruments.dbay.modules.dac4d import Dac4DParams, Dac4D
+from lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
+from lib.instruments.dbay.modules.empty import Empty, EmptyParams
 
-from lib.instruments.general.genericMainframe import GenericMainframe
-from lib.instruments.general.submodule import Submodule, SubmoduleParams
-from typing import Any
-from dataclasses import dataclass
+DBaySubmoduleParams = Annotated[
+    Dac4DParams | Dac16DParams | EmptyParams, Field(discriminator="type")
+]
 
 
-@dataclass
-class DBayParams:
+class DBayParams(MainframeParams):
     server_address: str = "10.7.0.4"
     port: int = 8345
+    modules: dict[int, DBaySubmoduleParams]
 
 
-class DBay(GenericMainframe):
+class DBay(Mainframe[DBayParams]):
     def __init__(self, server_address: str, port: int = 8345):
         self.server_address = server_address
         self.port = port
-        self.modules: List[Union[dac4D, dac16D, Empty]] = [Empty() for _ in range(16)]
+        self.modules: List[Dac4D | Dac16D | Empty] = [Empty() for _ in range(16)]
         self.comm = Comm(server_address, port)
         self.load_full_state()
 
@@ -33,21 +35,27 @@ class DBay(GenericMainframe):
         for i, module_info in enumerate(module_data):
             module_type = module_info["core"]["type"]
             if module_type == "dac4D":
-                self.modules[i] = dac4D(module_info, self.comm)
+                self.modules[i] = Dac4D(module_info, self.comm)
             elif module_type == "dac16D":
-                self.modules[i] = dac16D(module_info, self.comm)
+                self.modules[i] = Dac16D(module_info, self.comm)
             else:
                 self.modules[i] = Empty()
 
-    def create_submodule(self, params: SubmoduleParams) -> Submodule:
-        #
+    @classmethod
+    def from_params(cls, params: DBayParams) -> "DBay":
+        """
+        Create a DBay instance from parameters
+        :param params: Parameters for the DBay mainframe
+        :return: An instance of DBay
+        """
+        return cls(server_address=params.server_address, port=params.port)
+
+    def create_submodule(
+        self, params: DBaySubmoduleParams
+    ) -> Union[Dac4D, Dac16D, Empty]:
         slot = params.slot
-        module_type = params.type
 
-        # slot = params.core.slot
-        # module_type = params.core.type
-
-        # get handle to already-instantiated module
+        # modules should already be instantiated. Return an existing one
 
         return self.modules[slot] if self.modules[slot] else Empty()
 

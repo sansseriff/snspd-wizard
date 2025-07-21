@@ -1,24 +1,32 @@
-from typing import Optional
-
-from lib.instruments.general.genericMainframe import GenericMainframe
-from lib.instruments.general.genericSense import GenericSense
+from __future__ import annotations
+from snspd_measure.lib.instruments.general.vsense import VSense
 from lib.instruments.general.submodule import Submodule
-
 from lib.instruments.sim900.comm import Comm
-
-from lib.instruments.sim900.sim900 import Sim900, Sim970Params
 import time
-
 import numpy as np
+from typing import Literal
+from lib.instruments.general.submodule import SubmoduleParams
 
 
-class Sim970(Submodule, GenericSense):
+class Sim970Params(SubmoduleParams):
+    """Parameters for SIM970 voltmeter module"""
+
+    slot: int
+    type: Literal["sim970"] = "sim970"
+    channel: int | None = 1
+    offline: bool | None = False
+    settling_time: float | None = 0.1
+    attribute: str | None = None
+    max_retries: int | None = 3
+
+
+class Sim970(Submodule[Sim970Params], VSense):
     """
     SIM970 module in the SIM900 mainframe.
     Voltmeter
     """
 
-    def __init__(self, comm: Comm, params: Sim970Params):
+    def __init__(self, comm: Comm, params: Sim970Params) -> None:
         """
         :param comm: Communication object for this module
         :param params: Parameters for the module (contains channel info, etc.)
@@ -27,24 +35,40 @@ class Sim970(Submodule, GenericSense):
         self.channel = params.channel
         self.settling_time = params.settling_time
         self.attribute = params.attribute
+        self.connected = True  # Module is connected when initialized
+        self.max_retries = params.max_retries or 3
 
     @property
     def mainframe_class(self) -> str:
         return "lib.instruments.sim900.sim900.Sim900"
 
-    def getVoltage(self, ch: Optional[int] = None, _recurse: int = 0) -> float:
+    def disconnect(self) -> bool:
+        """
+        Disconnect from the SIM970 module.
+
+        Returns:
+            bool: True if disconnection successful, False otherwise
+        """
+        self.connected = False
+        return not self.connected
+
+    def get_voltage(self, channel: int | None = None) -> float:
         """
         This gets the voltage
-        :param ch: Channel 1-4 of the voltmeter
+        :param channel: Channel 1-4 of the voltmeter
         :return: the voltage in V [float]
         """
+        return self._get_voltage_impl(channel, 0)
+
+    def _get_voltage_impl(self, channel: int | None, recurse_count: int) -> float:
+        """Internal implementation with retry logic"""
         if self.comm.offline:
             return np.random.uniform()
 
-        if ch is None:
-            ch = self.channel
+        if channel is None:
+            channel = self.channel
 
-        cmd = "VOLT? " + str(ch)
+        cmd = "VOLT? " + str(channel)
         volts = self.comm.query(cmd)
         time.sleep(0.1)
         volts = self.comm.query(cmd)
@@ -52,8 +76,8 @@ class Sim970(Submodule, GenericSense):
         try:
             output = float(volts)
         except ValueError:
-            if _recurse < 3:
-                output = self.getVoltage(ch, _recurse + 1)
+            if recurse_count < self.max_retries:
+                output = self._get_voltage_impl(channel, recurse_count + 1)
             else:
                 raise ValueError(f"Could not parse voltage reading: {volts}")
 

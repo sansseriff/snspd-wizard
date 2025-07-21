@@ -17,8 +17,8 @@ from pathlib import Path
 
 from ...utilities.plotter import PlotManager
 from ...utilities.data_handler import DataHandler
-from ...instruments.general.genericSource import GenericSource
-from ...instruments.general.genericSense import GenericSense, GenericCounter
+from ...instruments.general.vsource import GenericSource
+from ...instruments.general.vsense import GenericSense, GenericCounter
 
 
 class PCRCurve:

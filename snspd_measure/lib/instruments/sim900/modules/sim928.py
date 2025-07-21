@@ -1,15 +1,22 @@
-from typing import Optional
-
-from lib.instruments.general.genericMainframe import GenericMainframe
-from lib.instruments.general.genericSource import GenericSource
+from snspd_measure.lib.instruments.general.vsource import VSource
 from lib.instruments.general.submodule import Submodule
-
 from lib.instruments.sim900.comm import Comm
+from typing import ClassVar
+from lib.instruments.general.submodule import SubmoduleParams
+from typing import Literal
 
-from lib.instruments.sim900.sim900 import Sim900, Sim928Params
+
+class Sim928Params(SubmoduleParams):
+    """Parameters for SIM928 voltage source module"""
+
+    slot: ClassVar[int]
+    type: Literal["sim928"] = "sim928"
+    offline: bool | None = False
+    settling_time: float | None = 0.4
+    attribute: str | None = None
 
 
-class Sim928(Submodule, GenericSource):
+class Sim928(Submodule[Sim928Params], VSource):
     """
     SIM928 module in the SIM900 mainframe
     Voltage source
@@ -23,30 +30,55 @@ class Sim928(Submodule, GenericSource):
         self.comm = comm
         self.settling_time = params.settling_time
         self.attribute = params.attribute
+        self.connected = True  # Assume connected after initialization
 
     @property
     def mainframe_class(self) -> str:
         return "lib.instruments.sim900.sim900.Sim900"
 
-    def setVoltage(self, voltage: float) -> int | bool | None:
+    def disconnect(self) -> bool:
+        """
+        Disconnect from the SIM928 module.
+
+        Returns:
+            bool: True if disconnection successful, False otherwise
+        """
+        if hasattr(self, "connected") and self.connected:
+            self.comm.disconnect()
+            self.connected = False
+        return not self.connected
+
+    def __del__(self):
+        """
+        Cleanup when the instance is deleted.
+        """
+        self.disconnect()
+
+    def set_voltage(self, voltage: float, channel: int | None = None) -> bool:
         """
         :param voltage: The voltage you want to set in Volts [float]
-        :return: the number of bytes written to the serial port
+        :param channel: Optional channel number (ignored for SIM928)
+        :return: True if successful, False otherwise
         """
         applyVoltage = "%0.3f" % voltage
         cmd = "VOLT " + str(applyVoltage)
-        return self.comm.write(cmd)
+        result = self.comm.write(cmd)
+        return result is not None and result > 0
 
-    def turnOn(self) -> int | bool | None:
+    def turn_on(self, channel: int | None = None) -> bool:
         """
         Turns the voltage source on
-        :return: the number of bytes written to the serial port
+        :param channel: Optional channel number (ignored for SIM928)
+        :return: True if successful, False otherwise
         """
-        return self.comm.write("OPON")
+        result = self.comm.write("OPON")
+        return result is not None and result > 0
 
-    def turnOff(self) -> int | bool | None:
+    def turn_off(self, channel: int | None = None) -> bool:
         """
         Turns the voltage source off
-        :return: the number of bytes written to the serial port
+        :param channel: Optional channel number (ignored for SIM928)
+        :return: True if successful, False otherwise
         """
-        return self.comm.write("OPOF")
+        result = self.comm.write("OPOF")
+        return result is not None and result > 0

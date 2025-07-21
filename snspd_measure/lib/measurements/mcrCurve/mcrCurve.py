@@ -10,14 +10,13 @@ import time
 import traceback
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List
 from pathlib import Path
-import threading
 
-from lib.utilities.data_handler import DataHandler, MeasurementMetadata
+# from lib.utilities.data_handler import DataHandler, MeasurementMetadata
 from lib.utilities.plotter import RealTimePlotter
-from lib.instruments.general.genericSource import GenericSource
-from lib.instruments.general.genericSense import GenericSense, GenericCounter
+from snspd_measure.lib.instruments.general.vsource import VSource
+from snspd_measure.lib.instruments.general.vsense import VSense
 
 
 class MCRCurveMeasurement:
@@ -26,10 +25,10 @@ class MCRCurveMeasurement:
     def __init__(
         self,
         params: MCRCurveParams,
-        voltage_source: GenericSource,
-        voltage_sense: GenericSense,
-        attenuator: GenericSource,  # Attenuator acts as optical source
-        counter: GenericCounter,
+        voltage_source: VSource,
+        voltage_sense: VSense,
+        attenuator: Attenuator,  # Attenuator acts as optical source
+        counter: Counter,
         output_dir: Optional[Path] = None,
     ):
         """

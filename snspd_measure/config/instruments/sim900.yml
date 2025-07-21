@@ -20,4 +20,17 @@
     - slot: 4
       type: sim970
       offline: false
+      channel: 1 # every sim970 has 4 channels, so the channel number isn't really a 'state' of the lab. I may remove 'channel' from this lab config file, and have a default inserted by the steup_measurement cli.
+- port: /dev/ttyUSB0
+  gpibAddr: 5
+  baudrate: 9600
+  timeout: 1.0
+  modules:
+    - slot: 1
+      type: sim970
+      offline: false
+      channel: 1
+    - slot: 2
+      type: sim970
+      offline: false
       channel: 1

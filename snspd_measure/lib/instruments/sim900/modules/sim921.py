@@ -1,15 +1,16 @@
-from typing import Optional
-
-from lib.instruments.general.genericMainframe import GenericMainframe
 from lib.instruments.general.submodule import Submodule, SubmoduleParams
-
 from lib.instruments.sim900.comm import Comm
-from pydantic import BaseModel
+from typing import ClassVar, Literal
 
-from lib.instruments.sim900.sim900 import Sim900, Sim921Params
-import time
 
-import numpy as np
+class Sim921Params(SubmoduleParams):
+    """Parameters for SIM921 resistance bridge module"""
+
+    slot: ClassVar[int]
+    type: Literal["sim921"] = "sim921"
+    offline: bool | None = False
+    settling_time: float | None = 0.1
+    attribute: str | None = None
 
 
 class Sim921(Submodule):

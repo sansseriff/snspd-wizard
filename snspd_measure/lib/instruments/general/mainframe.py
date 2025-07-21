@@ -1,8 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Any  # Changed Type to Any for generic type hint
+from typing import Any, TypeVar, Generic
+from pydantic import BaseModel
 
 
-class GenericMainframe(ABC):
+class MainframeParams(BaseModel):
+    pass
+
+
+M = TypeVar("M", bound=MainframeParams)
+
+
+class Mainframe(ABC, Generic[M]):
     @abstractmethod
     def create_submodule(self, params: Any) -> Any:  # Changed dataclass to Any
         """
@@ -14,4 +22,9 @@ class GenericMainframe(ABC):
         Returns:
             The created submodule instance
         """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_params(cls, params: M) -> "Mainframe[M]":
         pass

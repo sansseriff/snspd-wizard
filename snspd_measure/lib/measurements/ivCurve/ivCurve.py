@@ -18,9 +18,9 @@ from dataclasses import dataclass
 from lib.utilities.plotter import Plotter
 from lib.utilities.data_handler import IVDataHandler
 
-from lib.instruments.general.genericSource import GenericSource
-from lib.instruments.general.genericSense import GenericSense
-from lib.measurements.ivCurve.ivCurveParams import IVCurveParams
+from snspd_measure.lib.instruments.general.vsource import VSource
+from snspd_measure.lib.instruments.general.vsense import VSense
+from lib.measurements.ivCurve.ivcurve_params import IVCurveParams
 from lib.measurements.general.genericMeasurement import GenericMeasurement
 
 from lib.measurements.ivCurve.ivCurveParams import IVCurveResources

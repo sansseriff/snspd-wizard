@@ -29,9 +29,9 @@ from abc import ABC, abstractmethod
 
 
 # Import the actual base classes from the instrument modules
-from instruments.general.genericSource import GenericSource
-from instruments.general.genericSense import GenericSense, GenericCounter
-from snspd_measure.lib.instruments.general.genericMainframe import GenericMainframe
+from lib.instruments.general.vsource import VSource
+from lib.instruments.general.vsense import VSense
+from snspd_measure.lib.instruments.general.mainframe import Mainframe
 
 
 @dataclass
@@ -43,6 +43,7 @@ class MeasurementInfo:
     required_instruments: Dict[str, Type[Any]]
     measurement_dir: Path
 
+
 @dataclass
 class ParentResource:
     class_name: str
@@ -50,9 +51,11 @@ class ParentResource:
     params_obj: Type[Any] | None = None
     parent: ParentResource | None = None
 
+
 @dataclass
 class InstrumentInfo:
     """Information about available instruments"""
+
     display_name: str
     class_name: str
     module_name: str
@@ -60,8 +63,6 @@ class InstrumentInfo:
     class_obj: Type[Any]
     params_obj: Type[Any] | None = None
     parent: ParentResource | None = None
-
-
 
 
 class MeasurementSetup:
@@ -273,58 +274,44 @@ class MeasurementSetup:
                 print(f"❌ No compatible {role} instruments found.")
                 return
 
-
             selected = self.select_instrument(role, available)
 
             if selected.class_obj.mainframe_class:
-                # the instrument is a submodule in a mainframe
-                # store the mainframe class in InstrumentInfo
-                selected.mainframe_class = selected.class_obj.mainframe_class
+                # mainframe_class is a string like "lib.instruments.sim900.Sim900"
+                # we need to import it and set it as the mainframe_class of the selected instrument
+
+                mainframe_module = importlib.import_module(
+                    selected.class_obj.mainframe_class.split(".")[:-1]
+                )
+
+                mainframe_class = getattr(
+                    mainframe_module, selected.class_obj.mainframe_class.split(".")[-1]
+                )
+
+                selected.parent = ParentResource(
+                    class_name=mainframe_class.__name__, class_obj=mainframe_class
+                )
 
             selected_instruments[role] = selected
 
-
         # for each instrument in selected_instruments, check if it can be created based on the lab status
 
+        # look in the lib/config directory for a file with name selected_instruments[role].class_name.lower() + ".yml"
         for role, instrument_info in selected_instruments.items():
-            if instrument_info.mainframe_class:
-                # load the corresponding yaml from the ./config/instruments directory
+            yaml_path = (
+                self.base_dir / "config" / f"{instrument_info.class_name.lower()}.yml"
+            )
+            if yaml_path.exists():
+                instrument_info.yaml_path = yaml_path
+            else:
+                # error out
+                print(
+                    f"❌ No configuration file found for {instrument_info.class_name}. "
+                    f"Please create a YAML file in the config directory with the name {instrument_info.class_name.lower()}.yml"
+                )
+                return
 
-
-        # now, loop over the selected_instruments and see if multiple 
-
-        # now selected_instruments has a mapping of roles to instrument instances
-        # but these are still instruments which may exist on their own or as submodules in
-        # a mainframe.
-
-        # wee need to loop over the selected_instruments, and check if each is a submodule
-        # in a mainframe
-
-        # submodules have a parameter mainframe_class like this:
-
-        # @property
-        # def mainframe_class(self) -> type["GenericMainframe"]:
-        #    return Sim900
-
-        # so, for instrument in selected_instruments, we need to check if it has a mainframe_class
-        for instrument in selected_instruments.values():
-            if instrument.mainframe_class:
-                selected_instruments
-
-
-
-    def recursively_load_yaml(self, yaml_path: Path): 
-
-        """Recursively load YAML files and return the data."""
-        if not yaml_path.exists():
-            print(f"Warning: {yaml_path} does not exist.")
-            return {}
-
-        with open(yaml_path, "r") as f:
-            try:
-                data = yaml.safe_load(f) or {}
-                
-                # todo
+            # load the yaml file and throw it into the
 
     def combine_yaml_files(
         self,
@@ -454,8 +441,8 @@ class MeasurementSetup:
 
                 saver: GenericSaver
                 plotter: GenericPlotter
-                voltage_source: GenericSource
-                voltage_sense: GenericSense
+                voltage_source: VSource
+                voltage_sense: VSense
                 params: IVCurveParams
             
             '''

@@ -1,10 +1,16 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from lib.instruments.general.genericMainframe import GenericMainframe
-from pydantic import BaseModel, Field
+from typing import TypeVar, Generic
+from pydantic import BaseModel
 
 
-class Submodule(ABC):
+class SubmoduleParams(BaseModel):
+    """There's non-trivial rules for how ABC and pydantic interact."""
+
+
+P = TypeVar("P", bound=SubmoduleParams)
+
+
+class Submodule(ABC, Generic[P]):
     """ """
 
     @property
@@ -13,17 +19,7 @@ class Submodule(ABC):
         """Subclasses must override this property to specify the mainframe class."""
         pass
 
+    # should NOT have a from_params method, and init of submodules often requires
+    # something like a comm object in addition to params
 
-@dataclass
-class SubmoduleParams(BaseModel, ABC):
-    @property
-    @abstractmethod
-    def type(self) -> str:
-        """Subclasses must override this property to specify the type."""
-        pass
-
-    @property
-    @abstractmethod
-    def slot(self) -> int:
-        """Subclasses must override this property to specify the slot number."""
-        pass
+    # submodule initialization should be done with Mainframe.create_submodule(params)

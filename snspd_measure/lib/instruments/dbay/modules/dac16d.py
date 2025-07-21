@@ -1,81 +1,160 @@
 from lib.instruments.dbay.addons.vsource import VsourceChange, SharedVsourceChange
-from lib.instruments.dbay.state import IModule, Core
-from typing import Literal, Union, List
+from lib.instruments.dbay.state import Core
+from typing import Literal, List
 from lib.instruments.dbay.addons.vsource import IVsourceAddon, ChSourceState
 from lib.instruments.dbay.addons.vsense import ChSenseState
 
-from lib.instruments.general.submodule import Submodule
+from lib.instruments.general.submodule import Submodule, SubmoduleParams
 from lib.instruments.dbay.comm import Comm
+from typing import Any
 
-from dataclasses import dataclass
-
-
-class dac16D_spec(IModule):
-    module_type: Literal["dac16D"] = "dac16D"
-    core: Core
-    vsource: IVsourceAddon
-    vsb: dict  # Assuming vsb structure from backend
-    vr: dict  # Assuming vr structure from backend
+from snspd_measure.lib.instruments.general.vsource import VSource
 
 
-@dataclass
-class dac16DParams:
-    core: Core
+class Dac16DParams(SubmoduleParams):
+    type: Literal["dac16D"] = "dac16D"
+    slot: int
+    name: str
     vsource: IVsourceAddon
     vsb: ChSourceState
     vr: ChSenseState
 
 
-class dac16D(Submodule):
-    def __init__(self, data, comm: Comm):
+class Dac16DChannel(VSource):
+    """Individual channel of a Dac16D module that implements the VSource interface."""
+
+    def __init__(
+        self,
+        comm: Comm,
+        module_slot: int,
+        channel_index: int,
+        channel_data: ChSourceState,
+    ):
+        super().__init__()
         self.comm = comm
-        self.data = dac16D_spec(**data)
+        self.module_slot = module_slot
+        self.channel_index = channel_index
+        self.channel_data = channel_data
+        self.connected = True
+
+    def disconnect(self) -> bool:
+        """Disconnect this channel by reverting to its original config."""
+        if not self.connected:
+            return True
+
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=self.channel_data.bias_voltage,
+                activated=self.channel_data.activated,
+                heading_text=self.channel_data.heading_text,
+                measuring=False,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+            self.connected = False
+            return True
+        except Exception as e:
+            print(f"Error disconnecting dac16D channel {self.channel_index}: {e}")
+            return False
+
+    def set_voltage(self, voltage: float) -> bool:
+        """Set voltage for this channel."""
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=voltage,
+                activated=self.channel_data.activated,
+                heading_text=self.channel_data.heading_text,
+                measuring=True,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error setting voltage on channel {self.channel_index}: {e}")
+            return False
+
+    def turn_on(self) -> bool:
+        """Turn on output for this channel."""
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=self.channel_data.bias_voltage,
+                activated=True,
+                heading_text=self.channel_data.heading_text,
+                measuring=True,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error turning on channel {self.channel_index}: {e}")
+            return False
+
+    def turn_off(self) -> bool:
+        """Turn off output for this channel."""
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=self.channel_data.bias_voltage,
+                activated=False,
+                heading_text=self.channel_data.heading_text,
+                measuring=True,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error turning off channel {self.channel_index}: {e}")
+            return False
+
+
+class Dac16D(Submodule[Dac16DParams]):
+    def __init__(self, data: Any, comm: Comm):
+        super().__init__()
+        self.comm = comm
+        self.data = Dac16DParams(**data)
+        # Construct core object from flattened data
+        self.core = Core(slot=self.data.slot, type=self.data.type, name=self.data.name)
+
+        # Create individual channel objects
+        self.channels = [
+            Dac16DChannel(comm, self.core.slot, i, self.data.vsource.channels[i])
+            for i in range(16)
+        ]
+
+        self.connected = True  # Mark as connected after successful initialization
 
     @property
     def mainframe_class(self) -> str:
         return "lib.instruments.dbay.dbay.DBay"
 
+    def disconnect(self) -> bool:
+        """Disconnect from the dac16D module by disconnecting all channels."""
+        if not self.connected:
+            return True
+
+        for channel in self.channels:
+            channel.disconnect()
+
+        self.connected = False
+        return True
+
     def __del__(self):
-        print("Cleaning up dac16D instance.")
-
-        # Reverting to previous config
-        for idx in range(16):
-            change = VsourceChange(
-                module_index=self.data.core.slot,
-                index=idx,
-                bias_voltage=self.data.vsource.channels[idx].bias_voltage,
-                activated=self.data.vsource.channels[idx].activated,
-                heading_text=self.data.vsource.channels[idx].heading_text,
-                measuring=False,
-            )
-
-            self.comm.put("dac16D/vsource/", data=change.model_dump())
+        print("Cleaning up Dac16D instance.")
+        if hasattr(self, "connected") and self.connected:
+            self.disconnect()
 
     def __str__(self):
-        """Return a pretty string representation of the dac16D module."""
-        slot = self.data.core.slot
+        """Return a pretty string representation of the Dac16D module."""
+        slot = self.core.slot
         active_channels = sum(1 for ch in self.data.vsource.channels if ch.activated)
-        return f"dac16D (Slot {slot}): {active_channels}/16 channels active"
-
-    def voltage_set(
-        self, index: int, voltage: float, activated: Union[bool, None] = None
-    ):
-        if activated is None:
-            activated = self.data.vsource.channels[index].activated
-        change = VsourceChange(
-            module_index=self.data.core.slot,
-            index=index,
-            bias_voltage=voltage,
-            activated=activated,
-            heading_text=self.data.vsource.channels[index].heading_text,
-            measuring=True,
-        )
-
-        self.comm.put("dac16D/vsource/", data=change.model_dump())
+        return f"Dac16D (Slot {slot}): {active_channels}/16 channels active"
 
     def voltage_set_shared(
         self, voltage: float, activated: bool = True, channels: List[bool] | None = None
-    ):
+    ) -> bool:
         """
         Set same voltage to multiple channels at once
         """
@@ -83,30 +162,40 @@ class dac16D(Submodule):
             # Default to all channels
             channels = [True] * 16
 
-        change = VsourceChange(
-            module_index=self.data.core.slot,
-            index=0,  # Index doesn't matter for shared changes
-            bias_voltage=voltage,
-            activated=activated,
-            heading_text=self.data.vsource.channels[0].heading_text,
-            measuring=True,
-        )
+        try:
+            change = VsourceChange(
+                module_index=self.core.slot,
+                index=0,  # Index doesn't matter for shared changes
+                bias_voltage=voltage,
+                activated=activated,
+                heading_text=self.data.vsource.channels[0].heading_text,
+                measuring=True,
+            )
 
-        shared_change = SharedVsourceChange(change=change, link_enabled=channels)
+            shared_change = SharedVsourceChange(change=change, link_enabled=channels)
 
-        self.comm.put("dac16D/vsource_shared/", data=shared_change.model_dump())
+            self.comm.put("dac16D/vsource_shared/", data=shared_change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error setting shared voltage: {e}")
+            return False
 
-    def set_vsb(self, voltage: float, activated: bool = True):
+    def set_vsb(self, voltage: float, activated: bool = True) -> bool:
         """
         Set VSB voltage
         """
-        change = VsourceChange(
-            module_index=self.data.core.slot,
-            index=0,
-            bias_voltage=voltage,
-            activated=activated,
-            heading_text="VSB",
-            measuring=True,
-        )
+        try:
+            change = VsourceChange(
+                module_index=self.core.slot,
+                index=0,
+                bias_voltage=voltage,
+                activated=activated,
+                heading_text="VSB",
+                measuring=True,
+            )
 
-        self.comm.put("dac16D/vsb/", data=change.model_dump())
+            self.comm.put("dac16D/vsb/", data=change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error setting VSB voltage: {e}")
+            return False

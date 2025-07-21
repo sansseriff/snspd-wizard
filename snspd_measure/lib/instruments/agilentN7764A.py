@@ -14,8 +14,7 @@ from typing import Optional, Union, List
 from pathlib import Path
 from pydantic import BaseModel
 
-from lib.instruments.general.visaInst import visaInst
-from lib.instruments.general.genericSource import GenericSource
+from snspd_measure.lib.instruments.general.visa_inst import VisaInst
 
 
 # Instrument Configuration Dataclass
@@ -32,7 +31,7 @@ class AgilentN7764AConfig(BaseModel):
     wavelength: float = 1550.0  # Wavelength in nm
 
 
-class AgilentN7764A(visaInst, GenericSource):
+class AgilentN7764A(VisaInst):
     """
     Agilent N7764A 4-channel Variable Optical Attenuator.
 
@@ -292,11 +291,11 @@ class AgilentN7764A(visaInst, GenericSource):
             print(f"Error setting shutter state on channel {channel}: {e}")
             return False
 
-    # GenericSource interface implementation
+    # VSource interface implementation
     def set_voltage(self, voltage: float) -> bool:
         """
         Set voltage equivalent (maps to attenuation in dB).
-        This allows the attenuator to be used as a GenericSource.
+        This allows the attenuator to be used as a VSource.
 
         Args:
             voltage: Value interpreted as attenuation in dB

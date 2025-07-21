@@ -7,11 +7,11 @@ Keysight 53220A Universal Counter class.
 """
 
 import random
-from typing import Optional, Any
+from typing import Any
 from pydantic import BaseModel
 
-from lib.instruments.general.visaInst import visaInst
-from lib.instruments.general.genericSense import GenericCounter
+from snspd_measure.lib.instruments.general.visa_inst import VisaInst
+from snspd_measure.lib.instruments.general.counter import Counter
 
 
 class Keysight53220AConfig(BaseModel):
@@ -37,20 +37,19 @@ class Keysight53220AConfig(BaseModel):
     input_impedance: str = "50"  # "50" or "1M"
 
 
-class Keysight53220A(visaInst, GenericCounter):
+class Keysight53220A(Counter):
     """Class for Keysight 53220A Universal Counter."""
 
     def __init__(
         self,
         ip_address: str,
         port: int = 5025,
-        config: Optional[Keysight53220AConfig] = None,
+        config: Keysight53220AConfig | None = None,
         **kwargs: Any,
     ):
         """Initialize Keysight 53220A counter."""
-        # Initialize parent classes
-        visaInst.__init__(self, ip_address, port, kwargs.get("offline", False))
-        GenericCounter.__init__(self, name=f"Keysight53220A@{ip_address}")
+        # Create communication object (composition instead of inheritance)
+        self.comm = VisaInst(ip_address, port, kwargs.get("offline", False))
 
         # Store configuration
         self.config = config or Keysight53220AConfig()
@@ -59,14 +58,16 @@ class Keysight53220A(visaInst, GenericCounter):
         self._gate_time = self.config.default_gate_time
         self._threshold = self.config.threshold_absolute
 
-        # Auto-connect if requested
-        if kwargs.get("auto_connect", True):
-            self.connect()
+        # Set connected status based on communication object
+        self.connected = not self.comm.offline
+
+        # Apply configuration if connected (RAII principle)
+        if self.connected:
             self._apply_configuration()
 
     def _apply_configuration(self) -> bool:
         """Apply the configuration settings to the instrument."""
-        if self.offline:
+        if self.comm.offline:
             return True
 
         success = True
@@ -78,37 +79,22 @@ class Keysight53220A(visaInst, GenericCounter):
         # Apply gate time
         success &= self.set_gate_time(self.config.default_gate_time)
 
-        # Apply input settings
-        if hasattr(self, "set_input_coupling"):
-            success &= self.set_input_coupling(self.config.input_coupling)
-        if hasattr(self, "set_input_impedance"):
-            success &= self.set_input_impedance(self.config.input_impedance)
+        # Note: Input coupling and impedance methods would need to be implemented
+        # if needed for this specific instrument
 
-        return success
-
-    def connect(self) -> bool:
-        """Connect to the instrument and initialize settings."""
-        success = super().connect()
-        self.connected = success
         return success
 
     def disconnect(self) -> bool:
         """Disconnect from the instrument."""
-        if hasattr(self, "inst") and self.inst is not None:
-            try:
-                self.inst.close()
-                self.connected = False
-                return True
-            except Exception:
-                pass
+        success = self.comm.disconnect()
         self.connected = False
-        return True
+        return success
 
-    def measure(self, channel: Optional[int] = None) -> float:
+    def measure(self, channel: int | None = None) -> float:
         """Take a single measurement."""
         return self.read_counts()
 
-    def count(self, gate_time: float = 1.0, channel: Optional[int] = None) -> int:
+    def count(self, gate_time: float = 1.0, channel: int | None = None) -> int:
         """Count events for a specified gate time."""
         # Set gate time if different
         if abs(gate_time - self._gate_time) > 0.001:
@@ -120,17 +106,17 @@ class Keysight53220A(visaInst, GenericCounter):
 
     def configure_measurement(self, measurement_type: str, **kwargs: Any) -> bool:
         """Configure the measurement settings."""
-        if self.offline:
+        if self.comm.offline:
             return True
         return True
 
     def read_counts(self) -> float:
         """Read a single count/frequency measurement."""
-        if self.offline:
+        if self.comm.offline:
             return float(random.randint(1000, 10000))
 
         # Read measurement
-        values_str = self.query("READ?")
+        values_str = self.comm.query("READ?")
         if not values_str or values_str == "":
             return 0.0
 
@@ -140,24 +126,24 @@ class Keysight53220A(visaInst, GenericCounter):
 
     def set_threshold(self, threshold: float) -> bool:
         """Set trigger threshold in mV."""
-        if self.offline:
+        if self.comm.offline:
             self._threshold = threshold
             return True
 
         # Convert to volts
         threshold_v = threshold / 1000.0
-        success = bool(self.write(f"INP:LEV {threshold_v}"))
+        success = bool(self.comm.write(f"INP:LEV {threshold_v}"))
         if success:
             self._threshold = threshold
         return success
 
-    def set_gate_time(self, gate_time: float, channel: Optional[int] = None) -> bool:
+    def set_gate_time(self, gate_time: float, channel: int | None = None) -> bool:
         """Set the gate time for counting."""
-        if self.offline:
+        if self.comm.offline:
             self._gate_time = gate_time
             return True
 
-        success = bool(self.write(f"SENS:FREQ:GATE:TIME {gate_time}"))
+        success = bool(self.comm.write(f"SENS:FREQ:GATE:TIME {gate_time}"))
         if success:
             self._gate_time = gate_time
 
@@ -165,7 +151,7 @@ class Keysight53220A(visaInst, GenericCounter):
 
     def reset(self) -> bool:
         """Reset the instrument to default settings."""
-        if self.offline:
+        if self.comm.offline:
             return True
 
-        return bool(self.write("*RST"))
+        return bool(self.comm.write("*RST"))

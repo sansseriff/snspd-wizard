@@ -11,66 +11,35 @@ Includes:
   sim921 (AC resistance bridge)
 """
 
-import time
-import numpy as np
-from pydantic import BaseModel
-from typing import Any, Dict, Optional
+from pydantic import Field
+from typing import Any, Dict, Optional, Annotated
 
-from lib.instruments.general.serialInst import GPIBmodule
-from lib.instruments.general.genericMainframe import GenericMainframe
-from lib.instruments.general.submodule import Submodule, SubmoduleParams
-
-
+from snspd_measure.lib.instruments.general.mainframe import Mainframe
+from lib.instruments.general.submodule import Submodule
 from lib.instruments.sim900.comm import Comm
-from lib.instruments.sim900.modules.sim928 import Sim928
-from lib.instruments.sim900.modules.sim970 import Sim970
-from lib.instruments.sim900.modules.sim921 import Sim921
-from pydantic import BaseModel, Field
-from typing import ClassVar
+from lib.instruments.sim900.modules.sim928 import Sim928, Sim928Params
+from lib.instruments.sim900.modules.sim970 import Sim970, Sim970Params
+from lib.instruments.sim900.modules.sim921 import Sim921, Sim921Params
+from lib.instruments.general.mainframe import MainframeParams
+
+Sim900SubmoduleParams = Annotated[
+    Sim928Params | Sim970Params | Sim921Params, Field(discriminator="type")
+]
 
 
-class Sim921Params(SubmoduleParams):
-    """Parameters for SIM921 resistance bridge module"""
-
-    slot: ClassVar[int]
-    type: ClassVar[str] = "sim921"
-    offline: bool | None = False
-    settling_time: float | None = 0.1
-    attribute: str | None = None
-
-
-class Sim928Params(SubmoduleParams):
-    """Parameters for SIM928 voltage source module"""
-
-    slot: ClassVar[int]
-    type: ClassVar[str] = "sim928"
-    offline: bool | None = False
-    settling_time: float | None = 0.4
-    attribute: str | None = None
-
-
-class Sim970Params(SubmoduleParams):
-    """Parameters for SIM970 voltmeter module"""
-
-    slot: ClassVar[int]
-    type: ClassVar[str] = "sim970"
-    channel: int | None = 1
-    offline: bool | None = False
-    settling_time: float | None = 0.1
-    attribute: str | None = None
-
-
-class Sim900Params(BaseModel):
+class Sim900Params(MainframeParams):
     """Parameters for SIM900 mainframe"""
 
-    port: str = "/dev/ttyUSB0"
-    gpibAddr: int = 2
-    timeout: Optional[float] = 1.0
-    baudrate: Optional[int] = 9600
-    modules: Sim928Params | Sim970Params | Sim921Params = Field(discriminator="type")
+    port: Annotated[str, Field(description="USB serial port")] = "/dev/ttyUSB0"
+    gpibAddr: Annotated[int, Field(description="GPIB address number")] = 2
+    timeout: Annotated[Optional[float], Field(description="Connection timeout (s)")] = (
+        1.0
+    )
+    baudrate: Annotated[Optional[int], Field(description="Baud rate")] = 9600
+    modules: dict[int, Sim900SubmoduleParams]
 
 
-class Sim900(GenericMainframe):
+class Sim900(Mainframe[Sim900Params]):
     """
     Class for the sim900 mainframe
     """
@@ -86,9 +55,25 @@ class Sim900(GenericMainframe):
         self.port = port
         self.gpibAddr = gpibAddr
         self.kwargs = kwargs
-        self.modules: Dict[int, Submodule] = {}
+        self.modules: Dict[int, Submodule[Sim900SubmoduleParams]] = {}
 
-    def create_submodule(self, params: SubmoduleParams) -> Submodule:
+    @classmethod
+    def from_params(cls, params: Sim900Params) -> "Sim900":
+        """
+        Create a Sim900 instance from parameters
+        :param params: Parameters for the SIM900 mainframe
+        :return: An instance of Sim900
+        """
+        return cls(
+            port=params.port,
+            gpibAddr=params.gpibAddr,
+            timeout=params.timeout,
+            baudrate=params.baudrate,
+        )
+
+    def create_submodule(
+        self, params: Sim900SubmoduleParams
+    ) -> Submodule[Sim900SubmoduleParams]:
         """
         Create a submodule with the given parameters
         :param params: Parameters containing module type, slot, and configuration

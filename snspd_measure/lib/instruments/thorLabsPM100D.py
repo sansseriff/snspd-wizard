@@ -20,7 +20,7 @@ except ImportError:
         "Warning: ThorlabsPM100 library not available. Install with: pip install ThorlabsPM100"
     )
 
-from lib.instruments.general.genericSense import GenericSense
+from snspd_measure.lib.instruments.general.vsense import GenericSense
 
 
 # Instrument Configuration Dataclass

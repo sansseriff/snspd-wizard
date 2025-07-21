@@ -2,21 +2,17 @@
 Ando AQ8201A Optical Test System
 
 Modern implementation of the Ando AQ8201A mainframe and modules
-with GenericSource interface compliance for optical attenuation control.
+with Source interface compliance for optical attenuation control.
 """
 
 import time
 import numpy as np
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Tuple
 
 from pydantic import BaseModel
 
 
-from lib.instruments.general.serialInst import GPIBmodule
-from lib.instruments.general.genericSource import GenericSource
-
-
-# Instrument Configuration Dataclasses
+from lib.instruments.general.serial_inst import GPIBmodule
 
 
 class AndoAQ8201AParams(BaseModel):
@@ -66,12 +62,11 @@ class AndoAQ8201Module(GPIBmodule):
         return super().write(slot_cmd)
 
 
-class AndoAQ8201_31(AndoAQ8201Module, GenericSource):
+class AndoAQ8201_31(AndoAQ8201Module):
     """
     Ando AQ8201-31 Variable Optical Attenuator Module
 
-    Provides wavelength-dependent optical attenuation control with
-    GenericSource interface for integration with measurement systems.
+    Provides wavelength-dependent optical attenuation control
     """
 
     def __init__(self, port: str, gpib_addr: int, slot: int, **kwargs):
@@ -85,7 +80,6 @@ class AndoAQ8201_31(AndoAQ8201Module, GenericSource):
             **kwargs: Additional parameters
         """
         AndoAQ8201Module.__init__(self, port, gpib_addr, slot, **kwargs)
-        GenericSource.__init__(self)
 
         # State tracking
         self.current_wavelength = None
@@ -245,10 +239,8 @@ class AndoAQ8201_31(AndoAQ8201Module, GenericSource):
         except Exception as e:
             raise RuntimeError(f"Failed to get status: {e}")
 
-    # GenericSource interface implementation
     def set_output(self, value: float):
         """
-        Set attenuation output (GenericSource interface)
 
         Args:
             value: Attenuation in dB
@@ -257,7 +249,6 @@ class AndoAQ8201_31(AndoAQ8201Module, GenericSource):
 
     def get_output(self) -> float:
         """
-        Get current attenuation (GenericSource interface)
 
         Returns:
             Current attenuation in dB
