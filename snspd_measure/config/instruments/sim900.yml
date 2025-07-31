@@ -1,4 +1,4 @@
-# this file defines what mainframes (sim900) and submodules acctually exist in the lab
+# this file defines what parents (sim900) and submodules acctually exist in the lab
 
 - port: /dev/ttyUSB0
   gpibAddr: 2

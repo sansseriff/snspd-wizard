@@ -12,68 +12,60 @@ Includes:
 """
 
 from pydantic import Field
-from typing import Any, Dict, Optional, Annotated
+from typing import Any, Dict, Optional, Annotated, Literal
 
-from snspd_measure.lib.instruments.general.mainframe import Mainframe
-from lib.instruments.general.submodule import Submodule
+from lib.instruments.general.parent import Parent
+from lib.instruments.general.child import Child
 from lib.instruments.sim900.comm import Comm
 from lib.instruments.sim900.modules.sim928 import Sim928, Sim928Params
 from lib.instruments.sim900.modules.sim970 import Sim970, Sim970Params
 from lib.instruments.sim900.modules.sim921 import Sim921, Sim921Params
-from lib.instruments.general.mainframe import MainframeParams
+from lib.instruments.general.parent import ParentParams
+from lib.instruments.general.serial import SerialComm
+from lib.instruments.general.child import ChildParams
 
-Sim900SubmoduleParams = Annotated[
+Sim900ChildParams = Annotated[
     Sim928Params | Sim970Params | Sim921Params, Field(discriminator="type")
 ]
 
 
-class Sim900Params(MainframeParams):
+class Sim900Params(ParentParams[Sim900ChildParams], ChildParams):
     """Parameters for SIM900 mainframe"""
 
-    port: Annotated[str, Field(description="USB serial port")] = "/dev/ttyUSB0"
     gpibAddr: Annotated[int, Field(description="GPIB address number")] = 2
-    timeout: Annotated[Optional[float], Field(description="Connection timeout (s)")] = (
-        1.0
-    )
-    baudrate: Annotated[Optional[int], Field(description="Baud rate")] = 9600
-    modules: dict[int, Sim900SubmoduleParams]
+    modules: dict[str, Sim900ChildParams] = {}
+    type: Literal["sim900"] = "sim900"
 
 
-class Sim900(Mainframe[Sim900Params]):
+class Sim900(Parent[Sim900Params]):
     """
     Class for the sim900 mainframe
     """
 
-    def __init__(self, port: str, gpibAddr: int, **kwargs: Any):
+    def __init__(self, resource: SerialComm, gpibAddr: int):
         """
-        :param port: The serial port. eg. '/dev/ttyUSB4'
-        :param gpibAddr: The GPIB address number [int]
+        :param comm: The communication object for the mainframe
         :param **kwargs: defined in serialInst.py
             timeout - connection timeout (s)
             offline - if True, don't actually write/read over com
         """
-        self.port = port
+        self.serial_comm = resource
         self.gpibAddr = gpibAddr
-        self.kwargs = kwargs
-        self.modules: Dict[int, Submodule[Sim900SubmoduleParams]] = {}
+        self.modules: Dict[int, Child] = {}
 
     @classmethod
-    def from_params(cls, params: Sim900Params) -> "Sim900":
+    def from_params(
+        cls, resource: SerialComm, params: Sim900Params
+    ) -> "tuple[Sim900, Sim900Params]":
         """
         Create a Sim900 instance from parameters
         :param params: Parameters for the SIM900 mainframe
         :return: An instance of Sim900
         """
-        return cls(
-            port=params.port,
-            gpibAddr=params.gpibAddr,
-            timeout=params.timeout,
-            baudrate=params.baudrate,
-        )
 
-    def create_submodule(
-        self, params: Sim900SubmoduleParams
-    ) -> Submodule[Sim900SubmoduleParams]:
+        return cls(resource, gpibAddr=params.gpibAddr), params
+
+    def create_submodule(self, params: Sim900ChildParams) -> Child:
         """
         Create a submodule with the given parameters
         :param params: Parameters containing module type, slot, and configuration
@@ -83,7 +75,7 @@ class Sim900(Mainframe[Sim900Params]):
         slot = params.slot
 
         # Create communication object for this slot
-        comm = Comm(self.port, self.gpibAddr, slot, **self.kwargs)
+        comm = Comm(self.serial_comm, self.gpibAddr, slot, offline=params.offline)
 
         # Create the appropriate submodule based on type
         if module_type == "sim970" and isinstance(params, Sim970Params):
@@ -98,7 +90,7 @@ class Sim900(Mainframe[Sim900Params]):
         self.modules[slot] = module
         return module
 
-    def get_module(self, slot: int) -> Optional[Submodule]:
+    def get_module(self, slot: int) -> Optional[Child]:
         """
         Get a module by slot number
         :param slot: Slot number

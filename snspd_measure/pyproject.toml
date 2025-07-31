@@ -2,7 +2,7 @@
 name = "snspd-measure-new"
 version = "0.1.0"
 description = "Rewritten SNSPD measurement library"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 dependencies = [
     "numpy",
     "matplotlib",
@@ -10,9 +10,14 @@ dependencies = [
     "pyserial",
     "h5py",
     "pyyaml",
-    "pydantic>=2.10.6",
+    "pydantic>=2.11.7",
     "requests>=2.32.4",
+    "pydantic-yaml",
+    "ruamel-yaml>=0.18.14",
 ]
+
+[tool.uv.sources]
+pydantic-yaml = { git = "https://github.com/NowanIlfideme/pydantic-yaml", rev = "main" }
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]

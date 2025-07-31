@@ -1,7 +1,7 @@
 """
 Ando AQ8201A Optical Test System
 
-Modern implementation of the Ando AQ8201A mainframe and modules
+Modern implementation of the Ando AQ8201A parent and modules
 with Source interface compliance for optical attenuation control.
 """
 
@@ -30,7 +30,7 @@ class AndoAQ8201AParams(BaseModel):
 
 class AndoAQ8201Module(GPIBmodule):
     """
-    Base class for modules in Ando AQ8201A mainframe
+    Base class for modules in Ando AQ8201A parent
 
     Extends GPIBmodule to add slot-specific command formatting
     """
@@ -41,8 +41,8 @@ class AndoAQ8201Module(GPIBmodule):
 
         Args:
             port: Serial port path
-            gpib_addr: GPIB address of mainframe
-            slot: Slot number in mainframe
+            gpib_addr: GPIB address of parent
+            slot: Slot number in parent
             **kwargs: Additional parameters for GPIBmodule
         """
         super().__init__(port, gpib_addr, **kwargs)
@@ -75,8 +75,8 @@ class AndoAQ8201_31(AndoAQ8201Module):
 
         Args:
             port: Serial port path
-            gpib_addr: GPIB address of mainframe
-            slot: Slot number in mainframe
+            gpib_addr: GPIB address of parent
+            slot: Slot number in parent
             **kwargs: Additional parameters
         """
         AndoAQ8201Module.__init__(self, port, gpib_addr, slot, **kwargs)
@@ -312,8 +312,8 @@ class AndoAQ8201_412(AndoAQ8201Module):
 
         Args:
             port: Serial port path
-            gpib_addr: GPIB address of mainframe
-            slot: Slot number in mainframe
+            gpib_addr: GPIB address of parent
+            slot: Slot number in parent
             **kwargs: Additional parameters
         """
         super().__init__(port, gpib_addr, slot, **kwargs)
@@ -386,14 +386,14 @@ class AndoAQ8201_412(AndoAQ8201Module):
 
 class AndoAQ8201A:
     """
-    Ando AQ8201A Mainframe Controller
+    Ando AQ8201A Parent Controller
 
     Manages multiple modules in the Ando optical test system
     """
 
     def __init__(self, port: str, gpib_addr: int, **kwargs):
         """
-        Initialize AQ8201A mainframe
+        Initialize AQ8201A parent
 
         Args:
             port: Serial port path
@@ -460,7 +460,7 @@ class AndoAQ8201A:
                 print(f"Error disconnecting from {name}: {e}")
 
     def get_info(self) -> Dict[str, Any]:
-        """Get mainframe information"""
+        """Get parent information"""
         return {
             "instrument_type": "Ando AQ8201A Optical Test System",
             "port": self.port,
@@ -476,11 +476,11 @@ def main():
     print("Ando AQ8201A Optical Test System")
     print("Example usage:")
     print()
-    print("# Create mainframe")
-    print("mainframe = AndoAQ8201A('/dev/ttyUSB0', gpib_addr=1)")
+    print("# Create parent")
+    print("parent = AndoAQ8201A('/dev/ttyUSB0', gpib_addr=1)")
     print()
     print("# Add attenuator in slot 3")
-    print("attenuator = mainframe.add_attenuator(slot=3)")
+    print("attenuator = parent.add_attenuator(slot=3)")
     print()
     print("# Connect and use")
     print("attenuator.connect()")

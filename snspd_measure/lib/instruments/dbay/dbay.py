@@ -1,6 +1,6 @@
 from lib.instruments.dbay.comm import Comm
 from typing import List
-from lib.instruments.general.mainframe import Mainframe, MainframeParams
+from lib.instruments.general.parent import Parent, ParentParams
 from typing import Any, Annotated, Union
 from pydantic import Field
 
@@ -8,18 +8,26 @@ from lib.instruments.dbay.modules.dac4d import Dac4DParams, Dac4D
 from lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
 from lib.instruments.dbay.modules.empty import Empty, EmptyParams
 
-DBaySubmoduleParams = Annotated[
+DBayChildParams = Annotated[
     Dac4DParams | Dac16DParams | EmptyParams, Field(discriminator="type")
 ]
 
 
-class DBayParams(MainframeParams):
+class DBayParams(ParentParams[DBayChildParams]):
     server_address: str = "10.7.0.4"
     port: int = 8345
-    modules: dict[int, DBaySubmoduleParams]
+    num_modules: int = 4
+    modules: dict[str, DBayChildParams] = {}
+
+    def promote(self) -> "DBay":
+        """
+        Promote the parameters to a DBay instance.
+        :return: An instance of DBay
+        """
+        return DBay.from_params(self)
 
 
-class DBay(Mainframe[DBayParams]):
+class DBay(Parent[DBayParams]):
     def __init__(self, server_address: str, port: int = 8345):
         self.server_address = server_address
         self.port = port
@@ -50,12 +58,11 @@ class DBay(Mainframe[DBayParams]):
         """
         return cls(server_address=params.server_address, port=params.port)
 
-    def create_submodule(
-        self, params: DBaySubmoduleParams
-    ) -> Union[Dac4D, Dac16D, Empty]:
+    def create_submodule(self, params: DBayChildParams) -> Union[Dac4D, Dac16D, Empty]:
         slot = params.slot
 
         # modules should already be instantiated. Return an existing one
+        # other classes that use create_submodule might init the submodule here
 
         return self.modules[slot] if self.modules[slot] else Empty()
 

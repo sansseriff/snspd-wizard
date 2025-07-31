@@ -4,14 +4,14 @@ from typing import Literal, List
 from lib.instruments.dbay.addons.vsource import IVsourceAddon, ChSourceState
 from lib.instruments.dbay.addons.vsense import ChSenseState
 
-from lib.instruments.general.submodule import Submodule, SubmoduleParams
+from lib.instruments.general.child import Child, ChildParams
 from lib.instruments.dbay.comm import Comm
 from typing import Any
 
-from snspd_measure.lib.instruments.general.vsource import VSource
+from lib.instruments.general.vsource import VSource
 
 
-class Dac16DParams(SubmoduleParams):
+class Dac16DParams(ChildParams):
     type: Literal["dac16D"] = "dac16D"
     slot: int
     name: str
@@ -110,7 +110,7 @@ class Dac16DChannel(VSource):
             return False
 
 
-class Dac16D(Submodule[Dac16DParams]):
+class Dac16D(Child[Dac16DParams]):
     def __init__(self, data: Any, comm: Comm):
         super().__init__()
         self.comm = comm
@@ -127,7 +127,7 @@ class Dac16D(Submodule[Dac16DParams]):
         self.connected = True  # Mark as connected after successful initialization
 
     @property
-    def mainframe_class(self) -> str:
+    def parent_class(self) -> str:
         return "lib.instruments.dbay.dbay.DBay"
 
     def disconnect(self) -> bool:

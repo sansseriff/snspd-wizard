@@ -1,19 +1,18 @@
-from lib.instruments.general.submodule import Submodule, SubmoduleParams
+from lib.instruments.general.child import ChannelChildParams, Child
 from lib.instruments.sim900.comm import Comm
-from typing import ClassVar, Literal
+from typing import Literal
 
 
-class Sim921Params(SubmoduleParams):
+class Sim921Params(ChannelChildParams):
     """Parameters for SIM921 resistance bridge module"""
 
-    slot: ClassVar[int]
     type: Literal["sim921"] = "sim921"
     offline: bool | None = False
     settling_time: float | None = 0.1
     attribute: str | None = None
 
 
-class Sim921(Submodule):
+class Sim921(Child):
     """
     SIM921 module in the SIM900 mainframe
     Resistance bridge

@@ -1,15 +1,15 @@
-from lib.instruments.general.submodule import Submodule, SubmoduleParams
+from lib.instruments.general.child import Child, ChildParams
 from lib.instruments.dbay.state import Core
 from typing import Literal
 
 
-class EmptyParams(SubmoduleParams):
+class EmptyParams(ChildParams):
     type: Literal["empty"] = "empty"
     slot: int
     name: str
 
 
-class Empty(Submodule[EmptyParams]):
+class Empty(Child[EmptyParams]):
     def __init__(self, data: dict = None):
         """Initialize an empty module."""
         if data:
@@ -24,5 +24,5 @@ class Empty(Submodule[EmptyParams]):
         return "Empty slot"
 
     @property
-    def mainframe_class(self) -> str:
+    def parent_class(self) -> str:
         return "lib.instruments.dbay.dbay.DBay"

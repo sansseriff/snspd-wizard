@@ -1,17 +1,16 @@
 from __future__ import annotations
-from snspd_measure.lib.instruments.general.vsense import VSense
-from lib.instruments.general.submodule import Submodule
+from lib.instruments.general.vsense import VSense
+from lib.instruments.general.child import Child
 from lib.instruments.sim900.comm import Comm
 import time
 import numpy as np
 from typing import Literal
-from lib.instruments.general.submodule import SubmoduleParams
+from lib.instruments.general.child import ChannelChildParams
 
 
-class Sim970Params(SubmoduleParams):
+class Sim970Params(ChannelChildParams):
     """Parameters for SIM970 voltmeter module"""
 
-    slot: int
     type: Literal["sim970"] = "sim970"
     channel: int | None = 1
     offline: bool | None = False
@@ -20,7 +19,7 @@ class Sim970Params(SubmoduleParams):
     max_retries: int | None = 3
 
 
-class Sim970(Submodule[Sim970Params], VSense):
+class Sim970(Child, VSense):
     """
     SIM970 module in the SIM900 mainframe.
     Voltmeter

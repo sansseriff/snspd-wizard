@@ -1,22 +1,20 @@
-from snspd_measure.lib.instruments.general.vsource import VSource
-from lib.instruments.general.submodule import Submodule
+from lib.instruments.general.vsource import VSource
+from lib.instruments.general.child import Child
 from lib.instruments.sim900.comm import Comm
-from typing import ClassVar
-from lib.instruments.general.submodule import SubmoduleParams
+from lib.instruments.general.child import ChannelChildParams
 from typing import Literal
 
 
-class Sim928Params(SubmoduleParams):
+class Sim928Params(ChannelChildParams):
     """Parameters for SIM928 voltage source module"""
 
-    slot: ClassVar[int]
     type: Literal["sim928"] = "sim928"
     offline: bool | None = False
     settling_time: float | None = 0.4
     attribute: str | None = None
 
 
-class Sim928(Submodule[Sim928Params], VSource):
+class Sim928(Child, VSource):
     """
     SIM928 module in the SIM900 mainframe
     Voltage source

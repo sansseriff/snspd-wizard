@@ -3,21 +3,48 @@ from lib.instruments.dbay.addons.vsource import VsourceChange, ChSourceState
 from lib.instruments.dbay.state import Core
 from typing import Literal
 from lib.instruments.dbay.addons.vsource import IVsourceAddon
-from typing import Union
-from lib.instruments.general.submodule import Submodule, SubmoduleParams
-from snspd_measure.lib.instruments.general.vsource import VSource
-
+from lib.instruments.general.child import (
+    Child,
+    ChildParams,
+    ChannelChildParams,
+)
+from lib.instruments.general.parent import Parent
+from lib.instruments.general.vsource import VSource
+from pydantic import BaseModel
 from typing import Any
 
 
-class Dac4DParams(SubmoduleParams):
+class Dac4DChannelParams(ChildParams):
+    resource: str | None = None
+
+
+"""
+Dac4DParams and Dac4DState are similar. Dac4DState is used to specify the full state of 
+the module, while Dac4DParams is used to store the 'path' to any particular channels in use. 
+
+
+If a channel is to be used in an experiment, Dac4DParams will be given a key/value pair
+in the channels dict, and the Dac4DChannelParams class will be given a resource string
+"""
+
+
+class Dac4DParams(ChannelChildParams):
     type: Literal["dac4D"] = "dac4D"
-    slot: int
-    name: str
+    name: str = "Dac4D"
+    channels: dict[str, Dac4DChannelParams] = {}
+
+    @property
+    def parent_class(self) -> str:
+        return "lib.instruments.dbay.dbay.DBay"
+
+
+class Dac4DState(BaseModel):
+    module_type: Literal["dac4D"] = "dac4D"
+    core: Core
     vsource: IVsourceAddon
 
 
-class Dac4DChannel(VSource):
+class Dac4DChannel(Child[Dac4DChannelParams], VSource):
     """Individual channel of a Dac4D module that implements the VSource interface."""
 
     def __init__(
@@ -27,12 +54,15 @@ class Dac4DChannel(VSource):
         channel_index: int,
         channel_data: ChSourceState,
     ):
-        super().__init__()
         self.comm = comm
         self.module_slot = module_slot
         self.channel_index = channel_index
         self.channel_data = channel_data
         self.connected = True
+
+    @property
+    def parent_class(self) -> str:
+        return "lib.instruments.dbay.dbay.DBay"
 
     def disconnect(self) -> bool:
         """Disconnect this channel by reverting to its original config."""
@@ -107,17 +137,19 @@ class Dac4DChannel(VSource):
             return False
 
 
-class Dac4D(Submodule[Dac4DParams]):
+class Dac4D(Child[Dac4DParams], Parent):
     @property
-    def mainframe_class(self) -> str:
+    def parent_class(self) -> str:
         return "lib.instruments.dbay.dbay.DBay"
 
     def __init__(self, data: dict[str, Any], comm: Comm):
         super().__init__()
         self.comm = comm
-        self.data = Dac4DParams(**data)
+        self.data = Dac4DState(**data)
         # Construct core object from flattened data
-        self.core = Core(slot=self.data.slot, type=self.data.type, name=self.data.name)
+        self.core = Core(
+            slot=self.data.core.slot, type=self.data.core.type, name=self.data.core.name
+        )
 
         # Create individual channel objects
         self.channels = [

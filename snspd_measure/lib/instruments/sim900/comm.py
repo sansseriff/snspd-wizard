@@ -1,5 +1,8 @@
-from snspd_measure.lib.instruments.general.serial_inst import GPIBmodule
 from typing import Any
+import time
+
+from lib.instruments.general.gpib import GPIBComm
+from lib.instruments.general.serial import SerialComm
 
 
 class Comm:
@@ -8,16 +11,17 @@ class Comm:
     Handles GPIB communication with slot-specific commands
     """
 
-    def __init__(self, port: str, gpibAddr: int, slot: int, **kwargs: Any):
+    def __init__(
+        self, serial_comm: SerialComm, gpibAddr: int, slot: int, **kwargs: Any
+    ):
         """
-        :param port: The serial port. eg. '/dev/ttyUSB4'
+        :param serial_comm: Shared SerialComm instance from SerialConnection
         :param gpibAddr: The GPIB address number [int]
         :param slot: The slot number in the sim900 mainframe [int]
-        :param **kwargs: defined in serialInst.py
-            timeout - connection timeout (s)
+        :param **kwargs: Additional parameters
             offline - if True, don't actually write/read over com
         """
-        self.gpib_module = GPIBmodule(port, gpibAddr, **kwargs)
+        self.gpib_comm = GPIBComm(serial_comm, gpibAddr, **kwargs)
         self.slot = slot
         self.offline: bool = kwargs.get("offline", False)
 
@@ -27,15 +31,21 @@ class Comm:
         :param cmd: The command you want to send. eg. VOLT? 1
         :return: number of bytes written to the port
         """
-        cmd = "CONN " + str(self.slot) + ', "esc"\r\n' + cmd + "\r\nesc"
-        return self.gpib_module.write(cmd)
+        if self.offline:
+            return True
+
+        # Format command for sim900 slot communication
+        slot_cmd = f'CONN {self.slot}, "esc"\r\n{cmd}\r\nesc'
+        return self.gpib_comm.write(slot_cmd)
 
     def read(self) -> bytes | str:
         """
         Read from the GPIB module
         :return: response from the instrument
         """
-        return self.gpib_module.read()
+        if self.offline:
+            return ""
+        return self.gpib_comm.read()
 
     def query(self, cmd: str) -> bytes | str:
         """
@@ -43,15 +53,28 @@ class Comm:
         :param cmd: Command to send
         :return: Response from instrument
         """
+        if self.offline:
+            return ""
         self.write(cmd)
+        time.sleep(0.1)  # Small delay for slot communication
         return self.read()
 
     def connect(self) -> bool:
-        """Connect to the instrument"""
-        result = self.gpib_module.connect()
-        return result is not None
+        """
+        Connect to the instrument
+        :return: True if successful
+        """
+        if self.offline:
+            print(f"Connected to offline sim900 slot {self.slot}")
+            return True
+        return self.gpib_comm.connect()
 
     def disconnect(self) -> bool:
-        """Disconnect from the instrument"""
-        result = self.gpib_module.disconnect()
-        return result is not None
+        """
+        Disconnect from the instrument
+        :return: True if successful
+        """
+        if self.offline:
+            print(f"Disconnected from offline sim900 slot {self.slot}")
+            return True
+        return self.gpib_comm.disconnect()

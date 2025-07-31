@@ -31,7 +31,7 @@ from abc import ABC, abstractmethod
 # Import the actual base classes from the instrument modules
 from lib.instruments.general.vsource import VSource
 from lib.instruments.general.vsense import VSense
-from snspd_measure.lib.instruments.general.mainframe import Mainframe
+from lib.instruments.general.parent import Parent
 
 
 @dataclass
@@ -69,7 +69,7 @@ class MeasurementSetup:
     """Main CLI class for setting up measurements"""
 
     def __init__(self):
-        self.base_dir = Path(__file__).parent
+        self.base_dir = Path(__file__).parent / "lib"
         self.instruments_dir = self.base_dir / "instruments"
         self.measurements_dir = self.base_dir / "measurements"
         self.projects_dir = self.base_dir / "projects"
@@ -263,6 +263,7 @@ class MeasurementSetup:
 
         print(f"\n📋 Setting up: {selected_measurement.name}")
         print(f"Description: {selected_measurement.description}")
+        print(f"required instruments: {selected_measurement.required_instruments}")
 
         # Discover and select instruments
         selected_instruments: dict[str, InstrumentInfo] = {}
@@ -276,20 +277,20 @@ class MeasurementSetup:
 
             selected = self.select_instrument(role, available)
 
-            if selected.class_obj.mainframe_class:
-                # mainframe_class is a string like "lib.instruments.sim900.Sim900"
-                # we need to import it and set it as the mainframe_class of the selected instrument
+            if selected.class_obj.parent_class:
+                # parent_class is a string like "lib.instruments.sim900.Sim900"
+                # we need to import it and set it as the parent_class of the selected instrument
 
-                mainframe_module = importlib.import_module(
-                    selected.class_obj.mainframe_class.split(".")[:-1]
+                parent_module = importlib.import_module(
+                    selected.class_obj.parent_class.split(".")[:-1]
                 )
 
-                mainframe_class = getattr(
-                    mainframe_module, selected.class_obj.mainframe_class.split(".")[-1]
+                parent_class = getattr(
+                    parent_module, selected.class_obj.parent_class.split(".")[-1]
                 )
 
                 selected.parent = ParentResource(
-                    class_name=mainframe_class.__name__, class_obj=mainframe_class
+                    class_name=parent_class.__name__, class_obj=parent_class
                 )
 
             selected_instruments[role] = selected
@@ -334,8 +335,8 @@ class MeasurementSetup:
         # Add instruments section
         combined_config["instruments"] = {}
 
-        # Track mainframes and their required sub-instruments
-        mainframes = {}
+        # Track parents and their required sub-instruments
+        parents = {}
         standalone_instruments = {}
 
         for role, instrument_info in selected_instruments.items():
@@ -348,19 +349,17 @@ class MeasurementSetup:
                     instrument_info.class_name.startswith("SIM")
                     and instrument_info.class_name != "SIM900"
                 ):
-                    # This is a sub-instrument, add it to mainframe
-                    mainframe_key = "sim900"
+                    # This is a sub-instrument, add it to parent
+                    parent_key = "sim900"
 
-                    if mainframe_key not in mainframes:
-                        # Initialize mainframe with base config
+                    if parent_key not in parents:
+                        # Initialize parent with base config
                         if "sim900" in instrument_config:
-                            mainframes[mainframe_key] = instrument_config[
-                                "sim900"
-                            ].copy()
-                            mainframes[mainframe_key]["sub-instruments"] = []
+                            parents[parent_key] = instrument_config["sim900"].copy()
+                            parents[parent_key]["sub-instruments"] = []
                         else:
-                            # Default mainframe config if not found
-                            mainframes[mainframe_key] = {
+                            # Default parent config if not found
+                            parents[parent_key] = {
                                 "port": "/dev/ttyUSB0",
                                 "gpibAddr": 2,
                                 "sub-instruments": [],
@@ -372,7 +371,7 @@ class MeasurementSetup:
                         sub_config = {
                             sub_instrument_name: instrument_config[sub_instrument_name]
                         }
-                        mainframes[mainframe_key]["sub-instruments"].append(sub_config)
+                        parents[parent_key]["sub-instruments"].append(sub_config)
                     else:
                         print(
                             f"Warning: {sub_instrument_name} config not found in YAML"
@@ -401,9 +400,9 @@ class MeasurementSetup:
                             )
                             standalone_instruments[instrument_name] = config
 
-        # Add mainframes to combined config
-        for mainframe_name, mainframe_config in mainframes.items():
-            combined_config["instruments"][mainframe_name] = mainframe_config
+        # Add parents to combined config
+        for parent_name, parent_config in parents.items():
+            combined_config["instruments"][parent_name] = parent_config
 
         # Add standalone instruments
         for instrument_name, config in standalone_instruments.items():
