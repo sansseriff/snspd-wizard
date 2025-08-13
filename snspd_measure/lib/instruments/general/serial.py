@@ -1,5 +1,5 @@
 from typing import Union
-from lib.instruments.general.parent import Parent, ParentParams
+from snspd_measure.lib.instruments.general.parent_child import Parent, ParentParams
 from typing import Annotated
 from pydantic import Field
 
@@ -83,16 +83,16 @@ class SerialConnection(Parent[SerialConnectionParams]):
         self.baudrate = baudrate
         self.timeout = timeout
         self.instruments: dict[str, Union[Sim900, GPIBInstrument]] = {}
-        self.comm = SerialComm(port, baudrate, timeout)
+        self.resource = SerialComm(port, baudrate, timeout)
         self.connect()
 
     def connect(self):
         """Connect to the serial port"""
-        self.comm.connect()
+        self.resource.connect()
 
     def disconnect(self):
         """Disconnect from the serial port"""
-        self.comm.disconnect()
+        self.resource.disconnect()
 
     @classmethod
     def from_params(cls, params: SerialConnectionParams) -> "SerialConnection":

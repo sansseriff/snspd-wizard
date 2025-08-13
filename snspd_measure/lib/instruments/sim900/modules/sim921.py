@@ -1,15 +1,21 @@
-from lib.instruments.general.child import ChannelChildParams, Child
-from lib.instruments.sim900.comm import Comm
 from typing import Literal
+from lib.instruments.general.parent_child import ChannelChildParams, Child
+from lib.instruments.sim900.comm import Comm
 
 
 class Sim921Params(ChannelChildParams):
     """Parameters for SIM921 resistance bridge module"""
 
     type: Literal["sim921"] = "sim921"
+    slot: int
+    num_channels: int = 1
     offline: bool | None = False
     settling_time: float | None = 0.1
     attribute: str | None = None
+
+    @property
+    def corresponding_inst(self):  # type: ignore[override]
+        return Sim921
 
 
 class Sim921(Child):
@@ -17,6 +23,16 @@ class Sim921(Child):
     SIM921 module in the SIM900 mainframe
     Resistance bridge
     """
+
+    @property
+    def parent_class(self) -> str:
+        return "lib.instruments.sim900.sim900.Sim900"
+
+    @classmethod
+    def from_params(cls, dep, params: Sim921Params):
+        comm = Comm(dep.serial_comm, dep.gpibAddr, params.slot, offline=params.offline)
+        inst = cls(comm, params)
+        return inst, params
 
     def __init__(self, comm: Comm, params: Sim921Params):
         """
@@ -26,6 +42,7 @@ class Sim921(Child):
         self.comm = comm
         self.settling_time = params.settling_time
         self.attribute = params.attribute
+        self.slot = params.slot
 
     @property
     def mainframe_class(self) -> str:

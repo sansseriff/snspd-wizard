@@ -1,22 +1,27 @@
 from __future__ import annotations
 from lib.instruments.general.vsense import VSense
-from lib.instruments.general.child import Child
+from lib.instruments.general.parent_child import ChannelChildParams, Child
 from lib.instruments.sim900.comm import Comm
 import time
 import numpy as np
 from typing import Literal
-from lib.instruments.general.child import ChannelChildParams
 
 
 class Sim970Params(ChannelChildParams):
     """Parameters for SIM970 voltmeter module"""
 
     type: Literal["sim970"] = "sim970"
+    slot: int
+    num_channels: int = 4
     channel: int | None = 1
     offline: bool | None = False
     settling_time: float | None = 0.1
     attribute: str | None = None
     max_retries: int | None = 3
+
+    @property
+    def corresponding_inst(self):  # type: ignore[override]
+        return Sim970
 
 
 class Sim970(Child, VSense):
@@ -36,10 +41,20 @@ class Sim970(Child, VSense):
         self.attribute = params.attribute
         self.connected = True  # Module is connected when initialized
         self.max_retries = params.max_retries or 3
+        self.slot = params.slot
 
     @property
-    def mainframe_class(self) -> str:
+    def parent_class(self) -> str:  # renamed from mainframe_class
         return "lib.instruments.sim900.sim900.Sim900"
+
+    @classmethod
+    def from_params(cls, dep, params: Sim970Params):
+        """
+        Factory required by Child ABC. 'dep' must expose serial_comm & gpibAddr.
+        """
+        comm = Comm(dep.serial_comm, dep.gpibAddr, params.slot, offline=params.offline)
+        inst = cls(comm, params)
+        return inst, params
 
     def disconnect(self) -> bool:
         """

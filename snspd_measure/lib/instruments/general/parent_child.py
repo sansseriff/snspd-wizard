@@ -1,29 +1,54 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, TypeVar, Generic
-from pydantic import BaseModel, model_validator
-from lib.instruments.general.child import ChildParams
+from pydantic import BaseModel, model_validator, Field
 
 
-P = TypeVar("P", bound=ChildParams, covariant=True)
+# Move base classes above TypeVar declarations so bounds use real types (not strings)
+class Dependency(ABC):
+    pass
 
 
-class ParentParams(BaseModel, Generic[P]):
-    """A submodule that is a limited subset of the full module."""
-
-    modules: dict[str, P] = {}
-    num_modules: int
+class ChildParams(BaseModel):
+    """There's non-trivial rules for how ABC and pydantic interact."""
 
     @model_validator(mode="after")
-    def validate_modules(self) -> "ParentParams[P]":
-        """Validate that modules dict is consistent with num_modules."""
-        # Check if we have too many modules
-        if len(self.modules) > self.num_modules:
+    def validate_type_exists(self) -> ChildParams:
+        """Validate that the type field is set."""
+        if not hasattr(self, "type") or getattr(self, "type") is None:
+            raise ValueError("Missing required 'type' field")
+        return self
+
+    @property
+    @abstractmethod
+    def corresponding_inst(self) -> "type[Child[Dependency, ChildParams]]":
+        """
+        A property that returns the corresponding instrument class for this child.
+        """
+        pass
+
+
+class ChannelChildParams(ChildParams):
+    """
+    A submodule that a fixed number of channels.
+
+    The validator checks that the channels dict is consistent with num_channels.
+    """
+
+    channels: dict[str, Any] = Field(default_factory=dict)
+    num_channels: int
+
+    @model_validator(mode="after")
+    def validate_channels(self) -> ChannelChildParams:
+        """Validate that channels dict is consistent with num_channels."""
+        # Check if we have too many channels
+        if len(self.channels) > self.num_channels:
             raise ValueError(
-                f"Too many modules: found {len(self.modules)} modules but num_modules is {self.num_modules}"
+                f"Too many channels: found {len(self.channels)} channels but num_channels is {self.num_channels}"
             )
 
         # Check that all string keys can be converted to valid channel numbers
-        for key in self.modules.keys():
+        for key in self.channels.keys():
             try:
                 channel_num = int(key)
             except ValueError:
@@ -31,143 +56,164 @@ class ParentParams(BaseModel, Generic[P]):
                     f"Channel key '{key}' cannot be converted to an integer"
                 )
 
-            if channel_num < 0 or channel_num >= self.num_modules:
+            if channel_num < 0 or channel_num >= self.num_channels:
                 raise ValueError(
                     f"Channel number {channel_num} is out of range. "
-                    f"Valid range is 0 to {self.num_modules - 1} (num_modules = {self.num_modules})"
+                    f"Valid range is 0 to {self.num_channels - 1} (num_channels = {self.num_channels})"
                 )
 
         return self
 
 
-M = TypeVar("M", bound=ParentParams[ChildParams])
-R = TypeVar("R")  # Resource type
+# TypeVars now bind to already-declared classes (fixes the previous forward-ref error)
+R = TypeVar("R", bound=Dependency)
+P = TypeVar("P", bound=ChildParams)
 
-# exp = Exp()
-
-# gpib_controlled = GPIBControlled.from_params(exp.instruments["gpib_controlled"])
-
-# mainfram_params = exp.instruments["mainframe"]
-# mainframe_sim900 = Sim900.from_params(mainfram_params, comm = gpib_controlled.get_comm())
-
-# sim928_params = mainframe_params.modules["sim928"]
-# sim928 = Sim928.from_params(sim928_params, comm=mainframe_sim900.get_comm())
-
-# sim970_params = mainframe_params.modules["sim970"]
-# sim970 = Sim970.from_params(sim970_params, comm=mainframe_sim900.get_comm())
+# Variance-expressive TypeVars for Child interface only
+R_co = TypeVar("R_co", bound=Dependency, covariant=True)
+P_co = TypeVar("P_co", bound=ChildParams, covariant=True)
+R_contra = TypeVar("R_contra", bound=Dependency, contravariant=True)
+P_contra = TypeVar("P_contra", bound=ChildParams, contravariant=True)
 
 
-class Parent(ABC, Generic[M, R]):
+class ParentParams(BaseModel, Generic[R, P]):
+    """A submodule that is a limited subset of the full module."""
+
+    # Use Field to avoid shared mutable default
+    children: dict[str, P] = Field(default_factory=dict)
+    num_children: int  # should be given default value in subclasses
+
+    # @classmethod
+    # @abstractmethod
+    # def init(
+    #     cls, params: "ParentParams[R, P_contra]"
+    # ) -> tuple[
+    #     "Parent[ParentParams[R, P_contra], R, P_contra]", "ParentParams[R, P_contra]"
+    # ]:
+    #     """
+    #     inside here you'd typically call my_parent.from_params(params)
+    #     """
+
+    #     pass
+
+    @property
+    @abstractmethod
+    def corresponding_inst(self) -> "type[Parent[R, P]]":
+        """
+        A property that returns the corresponding instrument class for this child.
+        """
+        pass
+
+    @model_validator(mode="after")
+    def validate_children(self) -> ParentParams[R, P]:
+        """Validate that children dict is consistent with num_children."""
+        # Check if we have too many children
+        if len(self.children) > self.num_children:
+            raise ValueError(
+                f"Too many children: found {len(self.children)} children but num_children is {self.num_children}"
+            )
+
+        # Check that all string keys can be converted to valid channel numbers
+        for key in self.children.keys():
+            try:
+                channel_num = int(key)
+            except ValueError:
+                raise ValueError(
+                    f"Channel key '{key}' cannot be converted to an integer"
+                )
+
+            if channel_num < 0 or channel_num >= self.num_children:
+                raise ValueError(
+                    f"Channel number {channel_num} is out of range. "
+                    f"Valid range is 0 to {self.num_children - 1} (num_children = {self.num_children})"
+                )
+
+        return self
+
+
+class Parent(ABC, Generic[R, P]):
     """
-    M Should be the params object that corresponds to the mainframe
+    R: dependency type (e.g., Comm)
+    P: ChildParams subtype for children
 
-    for example, 'MyParent(Parent[MyParentParams])'
+    Note:
+      The factory method for creating a Parent from only ParentParams has been
+      split out into ParentFactory. This avoids a signature clash when a class
+      is both a Parent and a Child (hybrid). Hybrid classes now only need to
+      implement the Child.from_params(dep, params) factory.
+    """
+
+    children: dict[str, "Child[R, P]"]
+
+    @property
+    @abstractmethod
+    def dep(self) -> R:
+        """
+        A dep is some object that childen require to operate, such as a Comm object.
+        This should return the same type as the first type expected by the Child.from_params method.
+        """
+        pass
+
+    @abstractmethod
+    def init_child_by_key(self, key: str) -> "Child[R, P]":
+        """
+        Create for a key 'my_key', init a child from this.params.children['my_key'],
+        and place it in self.children['my_key'].
+        """
+        pass
+
+    @abstractmethod
+    def init_children(self) -> None:
+        """
+        This is intended to enable the 'automatic' creation of all children by
+        iterating over the self.params.children dict. And therefore filling
+        the self.children dict.
+        """
+
+
+class ParentFactory(ABC, Generic[R, P]):
+    """
+    Optional mixin-style ABC for pure parent factories. Parents that are not also children.
+
+    Use this when a class is only a parent (not a child) and you want the
+    parent-style factory: from_params(cls, params) -> (instance, params).
+
+    Do NOT inherit this in classes that are also Children; implement only the
+    Child.from_params(dep, params) in those hybrid cases.
+    """
+
+    @classmethod
+    @abstractmethod
+    def from_params(
+        cls, params: ParentParams[R, P]
+    ) -> tuple["Parent[R, P]", ParentParams[R, P]]:
+        """
+        Create a parent from the given params (no dep argument).
+        Only implement in non-hybrid parent classes.
+        """
+        pass
+
+
+class Child(ABC, Generic[R_co, P_co]):
+    """
+    Public interface is covariant (Child[DerivedDep, DerivedParams] is a subtype of Child[BaseDep, BaseParams]).
+    Construction uses contravariant TypeVars so factories can accept broader (base) types.
     """
 
     @property
     @abstractmethod
-    def resource(self) -> R:
+    def parent_class(self) -> str:
+        """Subclasses must override this property to specify the parent class."""
         pass
 
+    @classmethod
     @abstractmethod
-    def create_submodule(self, params: Any) -> Any:  # Changed dataclass to Any
+    def from_params(
+        cls,
+        dep: R_contra,
+        params: P_contra,
+    ) -> tuple["Child[R_contra, P_contra]", P_contra]:
         """
-        Create a submodule with the given parameters.
-
-        Args:
-            params: Parameters for the submodule, typically a dataclass instance
-
-        Returns:
-            The created submodule instance
+        Factory method: accepts base (contravariant) dependency / params types
+        and returns a Child specialized to those concrete types.
         """
-        pass
-
-
-if __name__ == "__main__":
-    # Test the ParentParams validator
-
-    class TestChildParams(ChildParams):
-        value: int = 0
-
-    class TestParentParams(ParentParams[TestChildParams]):
-        pass
-
-    print("Testing ParentParams validator...")
-
-    # Test 1: Valid configuration
-    try:
-        valid_params = TestParentParams(
-            num_modules=3,
-            modules={
-                "0": TestChildParams(value=10),
-                "1": TestChildParams(value=20),
-                "2": TestChildParams(value=30),
-            },
-        )
-        print("✓ Test 1 passed: Valid configuration accepted")
-    except Exception as e:
-        print(f"✗ Test 1 failed: {e}")
-
-    # Test 2: Too many modules
-    try:
-        invalid_params = TestParentParams(
-            num_modules=2,
-            modules={
-                "0": TestChildParams(value=10),
-                "1": TestChildParams(value=20),
-                "2": TestChildParams(value=30),  # This should fail
-            },
-        )
-        print("✗ Test 2 failed: Should have raised ValueError for too many modules")
-    except ValueError as e:
-        print(f"✓ Test 2 passed: {e}")
-
-    # Test 3: Invalid module key (non-numeric)
-    try:
-        invalid_params = TestParentParams(
-            num_modules=3,
-            modules={
-                "0": TestChildParams(value=10),
-                "abc": TestChildParams(value=20),  # This should fail
-            },
-        )
-        print("✗ Test 3 failed: Should have raised ValueError for non-numeric key")
-    except ValueError as e:
-        print(f"✓ Test 3 passed: {e}")
-
-    # Test 4: Module number out of range
-    try:
-        invalid_params = TestParentParams(
-            num_modules=2,
-            modules={
-                "0": TestChildParams(value=10),
-                "5": TestChildParams(value=20),  # This should fail (5 >= 2)
-            },
-        )
-        print("✗ Test 4 failed: Should have raised ValueError for out-of-range module")
-    except ValueError as e:
-        print(f"✓ Test 4 passed: {e}")
-
-    # Test 5: Negative module number
-    try:
-        invalid_params = TestParentParams(
-            num_modules=3,
-            modules={
-                "-1": TestChildParams(value=10)  # This should fail
-            },
-        )
-        print("✗ Test 5 failed: Should have raised ValueError for negative module")
-    except ValueError as e:
-        print(f"✓ Test 5 passed: {e}")
-
-    # Test 6: Empty modules dict (should be valid)
-    try:
-        empty_params = TestParentParams(
-            num_modules=3,
-            modules={},
-        )
-        print("✓ Test 6 passed: Empty modules dict accepted")
-    except Exception as e:
-        print(f"✗ Test 6 failed: {e}")
-
-    print("\nAll mainframe tests completed!")

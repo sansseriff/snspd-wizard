@@ -1,17 +1,22 @@
 from lib.instruments.general.vsource import VSource
-from lib.instruments.general.child import Child
-from lib.instruments.sim900.comm import Comm
-from lib.instruments.general.child import ChannelChildParams
 from typing import Literal
+from lib.instruments.general.parent_child import ChannelChildParams, Child
+from lib.instruments.sim900.comm import Comm
 
 
 class Sim928Params(ChannelChildParams):
     """Parameters for SIM928 voltage source module"""
 
     type: Literal["sim928"] = "sim928"
+    slot: int
+    num_channels: int = 1
     offline: bool | None = False
     settling_time: float | None = 0.4
     attribute: str | None = None
+
+    @property
+    def corresponding_inst(self):  # type: ignore[override]
+        return Sim928
 
 
 class Sim928(Child, VSource):
@@ -19,6 +24,16 @@ class Sim928(Child, VSource):
     SIM928 module in the SIM900 mainframe
     Voltage source
     """
+
+    @property
+    def parent_class(self) -> str:
+        return "lib.instruments.sim900.sim900.Sim900"
+
+    @classmethod
+    def from_params(cls, dep, params: Sim928Params):
+        comm = Comm(dep.serial_comm, dep.gpibAddr, params.slot, offline=params.offline)
+        inst = cls(comm, params)
+        return inst, params
 
     def __init__(self, comm: Comm, params: Sim928Params):
         """
@@ -29,6 +44,7 @@ class Sim928(Child, VSource):
         self.settling_time = params.settling_time
         self.attribute = params.attribute
         self.connected = True  # Assume connected after initialization
+        self.slot = params.slot
 
     @property
     def mainframe_class(self) -> str:
