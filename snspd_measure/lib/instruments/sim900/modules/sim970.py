@@ -15,8 +15,8 @@ class Sim970Params(ChannelChildParams["Sim970"]):
     """Parameters for SIM970 voltmeter module"""
 
     type: Literal["sim970"] = "sim970"
-    slot: int
-    num_channels: int = 4
+    slot: int = 0
+    num_children: int = 4
     channel: int | None = 1
     offline: bool | None = False
     settling_time: float | None = 0.1

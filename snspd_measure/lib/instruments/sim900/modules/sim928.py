@@ -1,6 +1,6 @@
 from lib.instruments.general.vsource import VSource
 from typing import Literal
-from lib.instruments.general.parent_child import ChannelChildParams, Child
+from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
 from lib.instruments.sim900.comm import Comm
 from typing import TYPE_CHECKING
 
@@ -8,12 +8,11 @@ if TYPE_CHECKING:  # only for type checking to avoid circular import at runtime
     from lib.instruments.sim900.sim900 import Sim900Dep
 
 
-class Sim928Params(ChannelChildParams["Sim928"]):
+class Sim928Params(ChildParams["Sim928"]):
     """Parameters for SIM928 voltage source module"""
 
     type: Literal["sim928"] = "sim928"
     slot: int = 0  # default so Sim928Params() works in chain demo
-    num_channels: int = 1
     offline: bool | None = False
     settling_time: float | None = 0.4
     attribute: str | None = None

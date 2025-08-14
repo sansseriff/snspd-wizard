@@ -52,7 +52,7 @@ def test_requested_chain_expression():
     sim900 = controller.add_child("3", Sim900Params())
     sim928 = sim900.add_child("1", Sim928Params())
 
-    sim970 = sim900.add_child("5", Sim970Params(slot=3))
+    sim970 = sim900.add_child("5", Sim970Params())
 
     sim928.set_voltage(3.0)
 

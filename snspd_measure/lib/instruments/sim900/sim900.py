@@ -51,7 +51,7 @@ class Sim900Params(
 
     # Parent-specific
     children: dict[str, Sim900ChildParams] = Field(default_factory=dict)
-    num_channels: int = 8
+    num_children: int = 8
     gpibAddr: int = 2
     type: Literal["sim900"] = "sim900"
 
