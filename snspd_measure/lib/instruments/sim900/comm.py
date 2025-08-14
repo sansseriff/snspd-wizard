@@ -59,22 +59,22 @@ class Comm:
         time.sleep(0.1)  # Small delay for slot communication
         return self.read()
 
-    def connect(self) -> bool:
-        """
-        Connect to the instrument
-        :return: True if successful
-        """
-        if self.offline:
-            print(f"Connected to offline sim900 slot {self.slot}")
-            return True
-        return self.gpib_comm.connect()
+    # def connect(self) -> bool:
+    #     """
+    #     Connect to the instrument
+    #     :return: True if successful
+    #     """
+    #     if self.offline:
+    #         print(f"Connected to offline sim900 slot {self.slot}")
+    #         return True
+    #     return self.gpib_comm.connect()
 
-    def disconnect(self) -> bool:
-        """
-        Disconnect from the instrument
-        :return: True if successful
-        """
-        if self.offline:
-            print(f"Disconnected from offline sim900 slot {self.slot}")
-            return True
-        return self.gpib_comm.disconnect()
+    # def disconnect(self) -> bool:
+    #     """
+    #     Disconnect from the instrument
+    #     :return: True if successful
+    #     """
+    #     if self.offline:
+    #         print(f"Disconnected from offline sim900 slot {self.slot}")
+    #         return True
+    #     return self.gpib_comm.disconnect()

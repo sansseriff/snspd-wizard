@@ -5,9 +5,13 @@ from lib.instruments.sim900.comm import Comm
 import time
 import numpy as np
 from typing import Literal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # avoid circular import at runtime
+    from lib.instruments.sim900.sim900 import Sim900Dep
 
 
-class Sim970Params(ChannelChildParams):
+class Sim970Params(ChannelChildParams["Sim970"]):
     """Parameters for SIM970 voltmeter module"""
 
     type: Literal["sim970"] = "sim970"
@@ -20,11 +24,11 @@ class Sim970Params(ChannelChildParams):
     max_retries: int | None = 3
 
     @property
-    def corresponding_inst(self):  # type: ignore[override]
+    def corresponding_inst(self):
         return Sim970
 
 
-class Sim970(Child, VSense):
+class Sim970(Child["Sim900Dep", Sim970Params], VSense):
     """
     SIM970 module in the SIM900 mainframe.
     Voltmeter
@@ -48,23 +52,13 @@ class Sim970(Child, VSense):
         return "lib.instruments.sim900.sim900.Sim900"
 
     @classmethod
-    def from_params(cls, dep, params: Sim970Params):
+    def from_params(cls, dep: "Sim900Dep", params: Sim970Params):
         """
         Factory required by Child ABC. 'dep' must expose serial_comm & gpibAddr.
         """
         comm = Comm(dep.serial_comm, dep.gpibAddr, params.slot, offline=params.offline)
         inst = cls(comm, params)
         return inst, params
-
-    def disconnect(self) -> bool:
-        """
-        Disconnect from the SIM970 module.
-
-        Returns:
-            bool: True if disconnection successful, False otherwise
-        """
-        self.connected = False
-        return not self.connected
 
     def get_voltage(self, channel: int | None = None) -> float:
         """

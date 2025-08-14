@@ -1,16 +1,7 @@
-from typing import Union
-from snspd_measure.lib.instruments.general.parent_child import Parent, ParentParams
-from typing import Annotated
-from pydantic import Field
-
-from lib.instruments.sim900.sim900 import Sim900Params, Sim900
-from lib.instruments.general.gpib import GPIBComm
-# Import other serial-connected instrument types as needed
-
-SerialInstParams = Annotated[Sim900Params, Field(discriminator="type")]
-
 import serial
 from typing import Optional
+
+from lib.instruments.general.parent_child import Dependency
 
 
 class SerialComm:
@@ -63,79 +54,7 @@ class SerialComm:
         return self.read()
 
 
-class SerialConnectionParams(ParentParams[SerialInstParams]):
-    port: str = "/dev/ttyUSB0"
-    baudrate: int = 9600
-    timeout: int = 1
-    instruments: dict[str, SerialInstParams] = {}
-
-    def promote(self) -> "SerialConnection":
-        """
-        Promote the parameters to a SerialConnection instance.
-        :return: An instance of SerialConnection
-        """
-        return SerialConnection.from_params(self)
-
-
-class SerialConnection(Parent[SerialConnectionParams]):
-    def __init__(self, port: str, baudrate: int = 9600, timeout: int = 1):
-        self.port = port
-        self.baudrate = baudrate
-        self.timeout = timeout
-        self.instruments: dict[str, Union[Sim900, GPIBInstrument]] = {}
-        self.resource = SerialComm(port, baudrate, timeout)
-        self.connect()
-
-    def connect(self):
-        """Connect to the serial port"""
-        self.resource.connect()
-
-    def disconnect(self):
-        """Disconnect from the serial port"""
-        self.resource.disconnect()
-
-    @classmethod
-    def from_params(cls, params: SerialConnectionParams) -> "SerialConnection":
-        """
-        Create a SerialConnection instance from parameters
-        :param params: Parameters for the SerialConnection
-        :return: An instance of SerialConnection
-        """
-        instance = cls(
-            port=params.port, baudrate=params.baudrate, timeout=params.timeout
-        )
-
-        # Create instruments from params
-        for name, instrument_params in params.instruments.items():
-            instrument = instance.create_subinstrument(instrument_params)
-            instance.instruments[name] = instrument
-
-        return instance
-
-    def create_subinstrument(
-        self, params: SerialSubinstrumentParams
-    ) -> Union[Sim900, GPIBInstrument]:
-        """
-        Create an instrument that uses this serial connection
-        """
-        if params.type == "Sim900":
-            return Sim900.from_params(params, self.comm)
-        elif params.type == "GPIBInstrument":
-            return GPIBInstrument.from_params(params, self.comm)
-        else:
-            raise ValueError(f"Unknown instrument type: {params.type}")
-
-    def get_instrument(self, name: str):
-        """Get an instrument by name"""
-        return self.instruments.get(name)
-
-    def list_instruments(self):
-        """
-        Pretty-print a list of all instruments on this serial connection.
-        """
-        print(f"Serial Connection ({self.port}) Instruments:")
-        print("=" * 50)
-        for name, instrument in self.instruments.items():
-            print(f"{name}: {instrument}")
-        print("=" * 50)
-        return self.instruments
+# New dependency passed from SerialConnection to its children
+class SerialDep(Dependency):
+    def __init__(self, serial_comm: SerialComm):
+        self.serial_comm = serial_comm

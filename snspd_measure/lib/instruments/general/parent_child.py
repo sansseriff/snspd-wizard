@@ -9,46 +9,51 @@ class Dependency(ABC):
     pass
 
 
-class ChildParams(BaseModel):
-    """There's non-trivial rules for how ABC and pydantic interact."""
+I_co = TypeVar("I_co", bound="Child[Any, Any]", covariant=True)
+
+
+class HasCorrespondingInst(Generic[I_co], ABC):
+    @property
+    @abstractmethod
+    def corresponding_inst(self) -> type[I_co]: ...
+
+
+class ChildParams(BaseModel, Generic[I_co], HasCorrespondingInst[I_co]):
+    """Base class for all child parameter objects.
+
+    Generic over the concrete Child instrument type (I_co). This lets APIs
+    accepting a ChildParams[I] return an I without ad-hoc overloads.
+    """
 
     @model_validator(mode="after")
-    def validate_type_exists(self) -> ChildParams:
+    def validate_type_exists(self) -> ChildParams[I_co]:
         """Validate that the type field is set."""
         if not hasattr(self, "type") or getattr(self, "type") is None:
             raise ValueError("Missing required 'type' field")
         return self
 
-    @property
-    @abstractmethod
-    def corresponding_inst(self) -> "type[Child[Dependency, ChildParams]]":
-        """
-        A property that returns the corresponding instrument class for this child.
-        """
-        pass
 
-
-class ChannelChildParams(ChildParams):
+class ChannelChildParams(ChildParams[I_co], Generic[I_co]):
     """
     A submodule that a fixed number of channels.
 
     The validator checks that the channels dict is consistent with num_channels.
     """
 
-    channels: dict[str, Any] = Field(default_factory=dict)
-    num_channels: int
+    children: dict[str, Any] = Field(default_factory=dict)
+    num_children: int
 
     @model_validator(mode="after")
-    def validate_channels(self) -> ChannelChildParams:
-        """Validate that channels dict is consistent with num_channels."""
+    def validate_channels(self) -> ChannelChildParams[I_co]:
+        """Validate that channels dict is consistent with num_children."""
         # Check if we have too many channels
-        if len(self.channels) > self.num_channels:
+        if len(self.children) > self.num_children:
             raise ValueError(
-                f"Too many channels: found {len(self.channels)} channels but num_channels is {self.num_channels}"
+                f"Too many channels: found {len(self.children)} channels but num_children is {self.num_children}"
             )
 
         # Check that all string keys can be converted to valid channel numbers
-        for key in self.channels.keys():
+        for key in self.children.keys():
             try:
                 channel_num = int(key)
             except ValueError:
@@ -56,53 +61,48 @@ class ChannelChildParams(ChildParams):
                     f"Channel key '{key}' cannot be converted to an integer"
                 )
 
-            if channel_num < 0 or channel_num >= self.num_channels:
+            if channel_num < 0 or channel_num >= self.num_children:
                 raise ValueError(
                     f"Channel number {channel_num} is out of range. "
-                    f"Valid range is 0 to {self.num_channels - 1} (num_channels = {self.num_channels})"
+                    f"Valid range is 0 to {self.num_children - 1} (num_children = {self.num_children})"
                 )
 
         return self
 
 
-# TypeVars now bind to already-declared classes (fixes the previous forward-ref error)
 R = TypeVar("R", bound=Dependency)
-P = TypeVar("P", bound=ChildParams)
+P = TypeVar("P", bound=ChildParams[Any])
 
-# Variance-expressive TypeVars for Child interface only
-R_co = TypeVar("R_co", bound=Dependency, covariant=True)
-P_co = TypeVar("P_co", bound=ChildParams, covariant=True)
-R_contra = TypeVar("R_contra", bound=Dependency, contravariant=True)
-P_contra = TypeVar("P_contra", bound=ChildParams, contravariant=True)
+"""NOTE ON VARIANCE & FACTORY SIGNATURE
+
+The earlier design attempted to use contravariance on the dependency / params
+TypeVars in the Child interface so that a subclass could accept *broader*
+inputs. In practice, what we want is the opposite: subclasses almost always
+need to *narrow* the dependency + params types (e.g. Sim928 needs Sim900Dep
+and Sim928Params). Pylance (and mypy) then reported override incompatibility
+because a method cannot narrow a contravariant parameter type.
+
+To make subclass factories ergonomically type-safe we switch to a simpler
+pattern:
+    class Child[R, P]:
+            @classmethod
+            def from_params(cls: type[C], dep: R, params: P) -> tuple[C, P]
+
+Where C is a TypeVar bound to Child[Any, Any]. This lets each subclass bind C
+to itself (Sim928) and R/P to its concrete dependency/param types with no
+override complaints and precise return typing.
+"""
 
 
-class ParentParams(BaseModel, Generic[R, P]):
+PR_co = TypeVar("PR_co", bound="Parent[Any, Any]")
+
+
+class ParentParams(BaseModel, Generic[R, P], HasCorrespondingInst[Any]):
     """A submodule that is a limited subset of the full module."""
 
     # Use Field to avoid shared mutable default
     children: dict[str, P] = Field(default_factory=dict)
     num_children: int  # should be given default value in subclasses
-
-    # @classmethod
-    # @abstractmethod
-    # def init(
-    #     cls, params: "ParentParams[R, P_contra]"
-    # ) -> tuple[
-    #     "Parent[ParentParams[R, P_contra], R, P_contra]", "ParentParams[R, P_contra]"
-    # ]:
-    #     """
-    #     inside here you'd typically call my_parent.from_params(params)
-    #     """
-
-    #     pass
-
-    @property
-    @abstractmethod
-    def corresponding_inst(self) -> "type[Parent[R, P]]":
-        """
-        A property that returns the corresponding instrument class for this child.
-        """
-        pass
 
     @model_validator(mode="after")
     def validate_children(self) -> ParentParams[R, P]:
@@ -171,49 +171,85 @@ class Parent(ABC, Generic[R, P]):
         """
 
 
-class ParentFactory(ABC, Generic[R, P]):
+PP = TypeVar("PP", bound=ParentParams[Any, Any])  # any concrete ParentParams subtype
+PR = TypeVar("PR", bound="Parent[Any, Any]")  # any concrete Parent subtype
+
+
+class ParentFactory(ABC, Generic[PP, PR]):
     """
-    Optional mixin-style ABC for pure parent factories. Parents that are not also children.
+    Factory for creating a Parent (or subtype) from its concrete ParentParams (or subtype).
 
-    Use this when a class is only a parent (not a child) and you want the
-    parent-style factory: from_params(cls, params) -> (instance, params).
+    PP: concrete ParentParams subtype (any R/P specialization)
+    PR: resulting Parent subtype
 
-    Do NOT inherit this in classes that are also Children; implement only the
-    Child.from_params(dep, params) in those hybrid cases.
+    from_params:
+      Accepts a params instance (PP) and returns (parent_instance, same_params_object).
     """
 
     @classmethod
     @abstractmethod
-    def from_params(
-        cls, params: ParentParams[R, P]
-    ) -> tuple["Parent[R, P]", ParentParams[R, P]]:
-        """
-        Create a parent from the given params (no dep argument).
-        Only implement in non-hybrid parent classes.
-        """
+    def from_params(cls, params: PP) -> tuple[PR, PP]:
         pass
 
 
-class Child(ABC, Generic[R_co, P_co]):
-    """
-    Public interface is covariant (Child[DerivedDep, DerivedParams] is a subtype of Child[BaseDep, BaseParams]).
-    Construction uses contravariant TypeVars so factories can accept broader (base) types.
+C = TypeVar("C", bound="Child[Any, Any]")
+
+
+class Child(ABC, Generic[R, P]):
+    """Generic child instrument / module interface.
+
+    R: dependency type needed to build / operate this child (e.g., a Comm wrapper)
+    P: concrete ChildParams subtype describing configuration for this child
+
+    Subclasses implement from_params with their concrete (R, P) and return their
+    own class type. The generic signature with the "cls: type[C]" pattern allows
+    precise return typing while remaining friendly to static type checkers.
     """
 
     @property
     @abstractmethod
     def parent_class(self) -> str:
-        """Subclasses must override this property to specify the parent class."""
+        """Fully-qualified (or uniquely identifying) name of the expected parent class."""
         pass
 
     @classmethod
     @abstractmethod
     def from_params(
-        cls,
-        dep: R_contra,
-        params: P_contra,
-    ) -> tuple["Child[R_contra, P_contra]", P_contra]:
-        """
-        Factory method: accepts base (contravariant) dependency / params types
-        and returns a Child specialized to those concrete types.
-        """
+        cls: type[C],
+        dep: R,
+        params: P,
+    ) -> tuple[C, P]:
+        """Factory constructing the child from dependency + params."""
+
+
+# New ChannelChild base class
+R_dep = TypeVar("R_dep", bound=Dependency)
+
+
+class ChannelChild(Child[R_dep, ChannelChildParams[Any]]):
+    """
+    Base class for children whose params are ChannelChildParams (fixed number of channels).
+
+    Subclass responsibilities:
+      - implement parent_class property (name of expected parent class)
+      - add any channel-specific behavior
+
+    Provided:
+      - dep / params storage
+      - from_params factory matching current Child API
+      - convenience helpers for channels
+    """
+
+    params: ChannelChildParams[Any]
+    _dep: R_dep
+
+    def __init__(self, dep: R_dep, params: ChannelChildParams[Any]):
+        self._dep = dep
+        self.params = params
+
+    # Convenience helpers
+    def child_keys(self) -> list[int]:
+        return sorted(int(k) for k in self.params.children.keys())
+
+    def get_child(self, idx: int) -> Any:
+        return self.params.children[str(idx)]

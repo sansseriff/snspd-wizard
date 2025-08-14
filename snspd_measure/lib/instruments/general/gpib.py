@@ -1,12 +1,13 @@
 from lib.instruments.general.serial import SerialComm
 import time
 
+
 class GPIBComm:
     """
     GPIB communication layer that can use any underlying serial connection
     """
 
-    def __init__(self, serial_comm: SerialComm, gpibAddr: int, **kwargs):
+    def __init__(self, serial_comm: SerialComm, gpibAddr: int, offline: bool = False):
         """
         :param serial_comm: Shared SerialComm instance from SerialConnection
         :param gpibAddr: The GPIB address number [int]
@@ -15,9 +16,9 @@ class GPIBComm:
         """
         self.serial_comm = serial_comm
         self.gpibAddr = gpibAddr
-        self.offline = kwargs.get("offline", False)
+        self.offline = offline
 
-    def write(self, cmd: str) -> int | bool:
+    def write(self, cmd: str) -> int | None:
         """
         Write command to GPIB device
         :param cmd: The command to send
@@ -49,24 +50,9 @@ class GPIBComm:
         time.sleep(0.1)  # Small delay for response
         return self.read()
 
-    def connect(self) -> bool:
-        """
-        Connect to GPIB device (connection managed by SerialConnection)
-        :return: True if successful
-        """
-        if self.offline:
-            print(f"Connected to offline GPIB device at address {self.gpibAddr}")
-            return True
-        # Connection is managed by the SerialConnection
-        return True
+    # connect/disconnect should be managed only by the SerialConnection class
+    # def connect(self) -> bool:
+    #     return self.serial_comm.connect()
 
-    def disconnect(self) -> bool:
-        """
-        Disconnect from GPIB device (connection managed by SerialConnection)
-        :return: True if successful
-        """
-        if self.offline:
-            print(f"Disconnected from offline GPIB device at address {self.gpibAddr}")
-            return True
-        # Connection is managed by the SerialConnection
-        return True
+    # def disconnect(self) -> bool:
+    #     return self.serial_comm.disconnect()
