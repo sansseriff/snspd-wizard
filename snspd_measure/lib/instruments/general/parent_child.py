@@ -9,16 +9,40 @@ class Dependency(ABC):
     pass
 
 
-I_co = TypeVar("I_co", bound="Child[Any, Any]", covariant=True)
+I_co = TypeVar("I_co", bound="Child[Any]", covariant=True)
+
+P_co = TypeVar("P_co", bound="Parent[Any, Any]", covariant=True)
 
 
-class HasCorrespondingInst(Generic[I_co], ABC):
+class RequiresDepsToInstantiate(Generic[I_co], ABC):
+    """
+    Has a corresponding instrument instance, but that instance may require resources not
+    included in the params object. Like a comm object from a parent.
+    """
+
     @property
     @abstractmethod
-    def corresponding_inst(self) -> type[I_co]: ...
+    def inst(self) -> type[I_co]: ...
 
 
-class ChildParams(BaseModel, Generic[I_co], HasCorrespondingInst[I_co]):
+class RequiresNoDepsToInstantiate(Generic[P_co], ABC):
+    """
+    An instrument can be created with the params object. No other dependencies are required.
+    """
+
+    @abstractmethod
+    def create_inst(self) -> P_co:
+        pass
+
+
+# hmm I want ParentParams to have a method create_inst() IFF it is a top parent.
+# if its not a top parent then it presumably needs to pass down a resource like a comm object
+
+
+# and I want
+
+
+class ChildParams(BaseModel, Generic[I_co], RequiresDepsToInstantiate[I_co]):
     """Base class for all child parameter objects.
 
     Generic over the concrete Child instrument type (I_co). This lets APIs
@@ -27,7 +51,10 @@ class ChildParams(BaseModel, Generic[I_co], HasCorrespondingInst[I_co]):
 
     @model_validator(mode="after")
     def validate_type_exists(self) -> ChildParams[I_co]:
-        """Validate that the type field is set."""
+        """
+        Validate that the type field is set. This is used by pydantic to figure out
+        how to discriminate a union of possible pydantic models
+        """
         if not hasattr(self, "type") or getattr(self, "type") is None:
             raise ValueError("Missing required 'type' field")
         return self
@@ -97,7 +124,7 @@ override complaints and precise return typing.
 PR_co = TypeVar("PR_co", bound="Parent[Any, Any]")
 
 
-class ParentParams(BaseModel, Generic[R, P], HasCorrespondingInst[Any]):
+class ParentParams(BaseModel, Generic[R, P]):
     """A submodule that is a limited subset of the full module."""
 
     # Use Field to avoid shared mutable default
@@ -143,7 +170,7 @@ class Parent(ABC, Generic[R, P]):
       implement the Child.from_params(dep, params) factory.
     """
 
-    children: dict[str, "Child[R, P]"]
+    children: dict[str, "Child[R]"]
 
     @property
     @abstractmethod
@@ -155,7 +182,7 @@ class Parent(ABC, Generic[R, P]):
         pass
 
     @abstractmethod
-    def init_child_by_key(self, key: str) -> "Child[R, P]":
+    def init_child_by_key(self, key: str) -> "Child[R]":
         """
         Create for a key 'my_key', init a child from this.params.children['my_key'],
         and place it in self.children['my_key'].
@@ -188,14 +215,14 @@ class ParentFactory(ABC, Generic[PP, PR]):
 
     @classmethod
     @abstractmethod
-    def from_params(cls, params: PP) -> tuple[PR, PP]:
+    def from_params(cls, params: PP) -> PR:
         pass
 
 
-C = TypeVar("C", bound="Child[Any, Any]")
+C = TypeVar("C", bound="Child[Any]")
 
 
-class Child(ABC, Generic[R, P]):
+class Child(ABC, Generic[R]):
     """Generic child instrument / module interface.
 
     R: dependency type needed to build / operate this child (e.g., a Comm wrapper)
@@ -214,11 +241,11 @@ class Child(ABC, Generic[R, P]):
 
     @classmethod
     @abstractmethod
-    def from_params(
+    def from_params_with_dep(
         cls: type[C],
         dep: R,
-        params: P,
-    ) -> tuple[C, P]:
+        params: ChildParams[Any],
+    ) -> C:
         """Factory constructing the child from dependency + params."""
 
 
@@ -226,7 +253,7 @@ class Child(ABC, Generic[R, P]):
 R_dep = TypeVar("R_dep", bound=Dependency)
 
 
-class ChannelChild(Child[R_dep, ChannelChildParams[Any]]):
+class ChannelChild(Child[R_dep]):
     """
     Base class for children whose params are ChannelChildParams (fixed number of channels).
 

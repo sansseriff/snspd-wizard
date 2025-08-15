@@ -10,7 +10,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from lib.instruments.general.prologix import PrologixControllerParams
+from lib.instruments.general.prologix import PrologixGPIBParams
 from lib.instruments.sim900.sim900 import Sim900Params
 from lib.instruments.sim900.modules.sim928 import Sim928Params
 
@@ -48,7 +48,7 @@ def test_requested_chain_expression():
     # PrologixControllerParams(...).corresponding_inst().add_child(
     #    "3", Sim900Params()
     # ).add_child("1", Sim928Params())
-    controller = PrologixControllerParams(port="FAKE").corresponding_inst()
+    controller = PrologixGPIBParams(port="FAKE").create_inst()
     sim900 = controller.add_child("3", Sim900Params())
     sim928 = sim900.add_child("1", Sim928Params())
 

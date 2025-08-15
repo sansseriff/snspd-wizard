@@ -18,11 +18,11 @@ class Sim921Params(ChannelChildParams["Sim921"]):
     attribute: str | None = None
 
     @property
-    def corresponding_inst(self):  # type: ignore[override]
+    def inst(self):  # type: ignore[override]
         return Sim921
 
 
-class Sim921(Child["Sim900Dep", Sim921Params]):
+class Sim921(Child["Sim900Dep"]):
     """
     SIM921 module in the SIM900 mainframe
     Resistance bridge

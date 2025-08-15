@@ -24,11 +24,11 @@ class Sim970Params(ChannelChildParams["Sim970"]):
     max_retries: int | None = 3
 
     @property
-    def corresponding_inst(self):
+    def inst(self):
         return Sim970
 
 
-class Sim970(Child["Sim900Dep", Sim970Params], VSense):
+class Sim970(Child["Sim900Dep"], VSense):
     """
     SIM970 module in the SIM900 mainframe.
     Voltmeter

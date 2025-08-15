@@ -1,6 +1,6 @@
 from lib.instruments.general.vsource import VSource
 from typing import Literal
-from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
+from lib.instruments.general.parent_child import Child, ChildParams
 from lib.instruments.sim900.comm import Comm
 from typing import TYPE_CHECKING
 
@@ -18,11 +18,11 @@ class Sim928Params(ChildParams["Sim928"]):
     attribute: str | None = None
 
     @property
-    def corresponding_inst(self):  # type: ignore[override]
+    def inst(self):
         return Sim928
 
 
-class Sim928(Child["Sim900Dep", Sim928Params], VSource):
+class Sim928(Child["Sim900Dep"], VSource):
     """
     SIM928 module in the SIM900 mainframe
     Voltage source
