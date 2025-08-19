@@ -10,7 +10,7 @@ Includes:
   sim921 (AC resistance bridge)
 """
 
-from typing import Annotated, Literal, TYPE_CHECKING, cast, TypeVar
+from typing import Annotated, Literal, cast, TypeVar
 from pydantic import Field
 
 
@@ -22,14 +22,12 @@ from lib.instruments.general.parent_child import (
     Dependency,
     ChildParams,
 )
-from lib.instruments.sim900.comm import Comm
+
 from lib.instruments.sim900.modules.sim928 import Sim928Params
 from lib.instruments.sim900.modules.sim970 import Sim970Params
 from lib.instruments.sim900.modules.sim921 import Sim921Params
-from lib.instruments.general.serial import SerialComm  # still needed for Sim900Dep
-
-if TYPE_CHECKING:
-    from lib.instruments.general.serial import SerialDep  # parent dependency type
+from lib.instruments.general.serial import SerialDep
+from typing import Any
 
 Sim900ChildParams = Annotated[
     Sim928Params | Sim970Params | Sim921Params, Field(discriminator="type")
@@ -39,8 +37,8 @@ Sim900ChildParams = Annotated[
 class Sim900Dep(Dependency):
     """Internal dependency passed to SIM modules (holds shared serial + gpib)."""
 
-    def __init__(self, serial_comm: SerialComm, gpibAddr: int):
-        self.serial_comm = serial_comm
+    def __init__(self, parent_dep: SerialDep, gpibAddr: int):
+        self.serial = parent_dep  # keep attribute name for downstream code
         self.gpibAddr = gpibAddr
 
 
@@ -52,7 +50,6 @@ class Sim900Params(
     # Parent-specific
     children: dict[str, Sim900ChildParams] = Field(default_factory=dict)
     num_children: int = 8
-    gpibAddr: int = 2
     type: Literal["sim900"] = "sim900"
 
     @property
@@ -60,52 +57,55 @@ class Sim900Params(
         return Sim900
 
 
-TChild = TypeVar("TChild", bound=Child[Sim900Dep])
+TChild = TypeVar("TChild", bound=Child[Sim900Dep, Any])
 
 
-class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child["SerialDep"]):
+class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child[SerialDep, Any]):
     """
     SIM900 mainframe hybrid:
       - As Child of SerialConnection: consumes SerialDep (shared SerialComm)
       - As Parent of SIM modules: supplies Sim900Dep (serial + GPIB address)
     """
 
-    def __init__(self, parent_dep: "SerialDep", params: Sim900Params):
+    def __init__(self, dep: Sim900Dep, params: Sim900Params):
+        # init params don't include keys. So, that means that for sim900 to be created,
+        # keys (in this case GPIB number) must be present in the dep that's supplied.
+        # so __init__ must accept its corresponding dep that it uses internally. Not the
+        # dep donated from the parent.
         self.params = params
-        self._parent_dep = parent_dep  # dependency from SerialConnection
-        self._dep = Sim900Dep(parent_dep.serial_comm, params.gpibAddr)  # for children
-        self.children: dict[str, Child[Sim900Dep]] = {}
+        self._dep = dep
+        self.children: dict[str, Child[Sim900Dep, Any]] = {}
 
     # Child interface requirement
     @property
     def parent_class(self) -> str:
-        return "SerialConnection"
+        return "PrologixGPIB"
 
+    # Child interface factory expected by Parent implementations
     @classmethod
-    def from_params(  # type: ignore[override]
+    def from_params_with_dep(
         cls,
-        dep: "SerialDep",
+        parent_dep: SerialDep,
+        key: str,
         params: Sim900Params,
-    ) -> tuple["Sim900", Sim900Params]:
-        inst = cls(dep, params)
-        return inst, params
+    ) -> "Sim900":
+        sim_900_dep = Sim900Dep(parent_dep, int(key))
+
+        return cls(sim_900_dep, params)
 
     # Parent abstract requirement
     @property
     def dep(self) -> Sim900Dep:
         return self._dep
 
-    def _build_child_comm(self, p: Sim900ChildParams) -> Comm:
-        return Comm(self.dep.serial_comm, self.dep.gpibAddr, p.slot, offline=p.offline)
-
-    def init_child_by_key(self, key: str) -> Child[Sim900Dep]:
+    def init_child_by_key(self, key: str) -> Child[Sim900Dep, Any]:
         params = self.params.children[key]
         child_cls = params.inst
         # The specific param subtype matches child_cls, but the type checker
         # cannot express this dependency (params is a union). Cast to silence
         # the variance/union complaint.
         # child_typed = cast(type[Child[Sim900Dep, Sim900ChildParams]], child_cls)
-        child = child_cls.from_params_with_dep(self.dep, params)
+        child = child_cls.from_params_with_dep(self.dep, key, params)
         self.children[key] = child
         return child
 
@@ -116,7 +116,7 @@ class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child["SerialDep"]):
     def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
         self.params.children[key] = params  # type: ignore[assignment]
         child_cls = params.inst
-        child = child_cls.from_params_with_dep(self.dep, params)
+        child = child_cls.from_params_with_dep(self.dep, key, params)
         # Record in children dict with erased union type
-        self.children[key] = cast(Child[Sim900Dep], child)
+        self.children[key] = cast(Child[Sim900Dep, Any], child)
         return child

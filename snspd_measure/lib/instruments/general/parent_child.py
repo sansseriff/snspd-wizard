@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Generic
+from typing import Any, TypeVar, Generic, Iterable, Set, Type, Self
+import inspect
 from pydantic import BaseModel, model_validator, Field
 
 
@@ -9,12 +10,12 @@ class Dependency(ABC):
     pass
 
 
-I_co = TypeVar("I_co", bound="Child[Any]", covariant=True)
+I_co = TypeVar("I_co", bound="Child[Any, Any]", covariant=True)
 
 P_co = TypeVar("P_co", bound="Parent[Any, Any]", covariant=True)
 
 
-class RequiresDepsToInstantiate(Generic[I_co], ABC):
+class NeedsDepsToInstantiate(Generic[I_co], ABC):
     """
     Has a corresponding instrument instance, but that instance may require resources not
     included in the params object. Like a comm object from a parent.
@@ -25,7 +26,7 @@ class RequiresDepsToInstantiate(Generic[I_co], ABC):
     def inst(self) -> type[I_co]: ...
 
 
-class RequiresNoDepsToInstantiate(Generic[P_co], ABC):
+class CanInstantiate(Generic[P_co], ABC):
     """
     An instrument can be created with the params object. No other dependencies are required.
     """
@@ -42,7 +43,7 @@ class RequiresNoDepsToInstantiate(Generic[P_co], ABC):
 # and I want
 
 
-class ChildParams(BaseModel, Generic[I_co], RequiresDepsToInstantiate[I_co]):
+class ChildParams(BaseModel, Generic[I_co], NeedsDepsToInstantiate[I_co]):
     """Base class for all child parameter objects.
 
     Generic over the concrete Child instrument type (I_co). This lets APIs
@@ -50,11 +51,8 @@ class ChildParams(BaseModel, Generic[I_co], RequiresDepsToInstantiate[I_co]):
     """
 
     @model_validator(mode="after")
-    def validate_type_exists(self) -> ChildParams[I_co]:
-        """
-        Validate that the type field is set. This is used by pydantic to figure out
-        how to discriminate a union of possible pydantic models
-        """
+    def validate_type_exists(self) -> Self:
+        """Ensure a 'type' discriminator exists (required for union discrimination)."""
         if not hasattr(self, "type") or getattr(self, "type") is None:
             raise ValueError("Missing required 'type' field")
         return self
@@ -71,7 +69,7 @@ class ChannelChildParams(ChildParams[I_co], Generic[I_co]):
     num_children: int
 
     @model_validator(mode="after")
-    def validate_channels(self) -> ChannelChildParams[I_co]:
+    def validate_channels(self) -> Self:
         """Validate that channels dict is consistent with num_children."""
         # Check if we have too many channels
         if len(self.children) > self.num_children:
@@ -100,26 +98,6 @@ class ChannelChildParams(ChildParams[I_co], Generic[I_co]):
 R = TypeVar("R", bound=Dependency)
 P = TypeVar("P", bound=ChildParams[Any])
 
-"""NOTE ON VARIANCE & FACTORY SIGNATURE
-
-The earlier design attempted to use contravariance on the dependency / params
-TypeVars in the Child interface so that a subclass could accept *broader*
-inputs. In practice, what we want is the opposite: subclasses almost always
-need to *narrow* the dependency + params types (e.g. Sim928 needs Sim900Dep
-and Sim928Params). Pylance (and mypy) then reported override incompatibility
-because a method cannot narrow a contravariant parameter type.
-
-To make subclass factories ergonomically type-safe we switch to a simpler
-pattern:
-    class Child[R, P]:
-            @classmethod
-            def from_params(cls: type[C], dep: R, params: P) -> tuple[C, P]
-
-Where C is a TypeVar bound to Child[Any, Any]. This lets each subclass bind C
-to itself (Sim928) and R/P to its concrete dependency/param types with no
-override complaints and precise return typing.
-"""
-
 
 PR_co = TypeVar("PR_co", bound="Parent[Any, Any]")
 
@@ -129,33 +107,6 @@ class ParentParams(BaseModel, Generic[R, P]):
 
     # Use Field to avoid shared mutable default
     children: dict[str, P] = Field(default_factory=dict)
-    num_children: int  # should be given default value in subclasses
-
-    @model_validator(mode="after")
-    def validate_children(self) -> ParentParams[R, P]:
-        """Validate that children dict is consistent with num_children."""
-        # Check if we have too many children
-        if len(self.children) > self.num_children:
-            raise ValueError(
-                f"Too many children: found {len(self.children)} children but num_children is {self.num_children}"
-            )
-
-        # Check that all string keys can be converted to valid channel numbers
-        for key in self.children.keys():
-            try:
-                channel_num = int(key)
-            except ValueError:
-                raise ValueError(
-                    f"Channel key '{key}' cannot be converted to an integer"
-                )
-
-            if channel_num < 0 or channel_num >= self.num_children:
-                raise ValueError(
-                    f"Channel number {channel_num} is out of range. "
-                    f"Valid range is 0 to {self.num_children - 1} (num_children = {self.num_children})"
-                )
-
-        return self
 
 
 class Parent(ABC, Generic[R, P]):
@@ -170,19 +121,19 @@ class Parent(ABC, Generic[R, P]):
       implement the Child.from_params(dep, params) factory.
     """
 
-    children: dict[str, "Child[R]"]
+    children: dict[str, "Child[R, P]"]
 
     @property
     @abstractmethod
     def dep(self) -> R:
         """
-        A dep is some object that childen require to operate, such as a Comm object.
+        A dep is some object that children require to operate, such as a Comm object.
         This should return the same type as the first type expected by the Child.from_params method.
         """
         pass
 
     @abstractmethod
-    def init_child_by_key(self, key: str) -> "Child[R]":
+    def init_child_by_key(self, key: str) -> "Child[R, P]":
         """
         Create for a key 'my_key', init a child from this.params.children['my_key'],
         and place it in self.children['my_key'].
@@ -219,13 +170,93 @@ class ParentFactory(ABC, Generic[PP, PR]):
         pass
 
 
-C = TypeVar("C", bound="Child[Any]")
+# ------------------- Params / __init__ alignment utilities -------------------
 
 
-class Child(ABC, Generic[R]):
+def _collect_init_param_names(cls: type) -> Set[str]:
+    """Return the set of parameter names (excluding self) in the class __init__.
+
+    Considers POSITIONAL_OR_KEYWORD and KEYWORD_ONLY parameters. Ignores *args/**kwargs
+    because those defeat strict alignment guarantees.
+    """
+    sig = inspect.signature(cls.__init__)
+    names: Set[str] = set()
+    for p in list(sig.parameters.values())[1:]:  # skip self
+        if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY):
+            names.add(p.name)
+    return names
+
+
+def assert_params_init_alignment(
+    *,
+    parent_cls: Type[Any],
+    params_cls: Type[ParentParams[Any, Any]],
+    exclude: Iterable[str] = ("children",),
+    allow_missing: bool = False,
+    allow_extra: bool = False,
+) -> None:
+    """Validate that parent_cls.__init__ parameters align with params_cls fields.
+
+    exclude: field names in params model to ignore (e.g. children container)
+    allow_missing / allow_extra: relax strictness (typically both False)
+
+    Raises TypeError on mismatch for early (import-time) failure.
+    """
+    init_names = _collect_init_param_names(parent_cls)
+    model_fields = set(params_cls.model_fields) - set(exclude)
+    missing = model_fields - init_names
+    extra = init_names - model_fields
+    problems: list[str] = []
+    if missing and not allow_missing:
+        problems.append(f"missing field in __init__ of instrument: {sorted(missing)}")
+    if extra and not allow_extra:
+        problems.append(f"extra field in __init__ of instrument: {sorted(extra)}")
+    if problems:
+        raise TypeError(
+            f"Param/init misalignment for {parent_cls.__name__} vs {params_cls.__name__}: "
+            + "; ".join(problems)
+        )
+
+
+def params_alignment(
+    params_cls: Type[ParentParams[Any, Any]],
+    *,
+    exclude: Iterable[str] = ("children",),
+    allow_missing: bool = False,
+    allow_extra: bool = False,
+):
+    """Class decorator to enforce alignment at definition time.
+
+    Example:
+        @params_alignment(MyParentParams, exclude={"children"})
+        class MyParent(...):
+            ...
+    """
+
+    def decorator(parent_cls: Type[Any]) -> Type[Any]:
+        assert_params_init_alignment(
+            parent_cls=parent_cls,
+            params_cls=params_cls,
+            exclude=exclude,
+            allow_missing=allow_missing,
+            allow_extra=allow_extra,
+        )
+        return parent_cls
+
+    return decorator
+
+
+C = TypeVar("C", bound="Child[Any, Any]")
+# Replace old Child with param-generic version
+P_child = TypeVar("P_child", bound=ChildParams[Any])
+
+
+class Child(ABC, Generic[R, P_child]):
     """Generic child instrument / module interface.
 
-    R: dependency type needed to build / operate this child (e.g., a Comm wrapper)
+    R: dependency type passed down by the parent. The child may make a new dep
+    object for internal use, using the parent's key that refers to this child.
+
     P: concrete ChildParams subtype describing configuration for this child
 
     Subclasses implement from_params with their concrete (R, P) and return their
@@ -243,17 +274,23 @@ class Child(ABC, Generic[R]):
     @abstractmethod
     def from_params_with_dep(
         cls: type[C],
-        dep: R,
-        params: ChildParams[Any],
+        parent_dep: R,
+        key: str,
+        params: P_child,
     ) -> C:
-        """Factory constructing the child from dependency + params."""
+        """Factory constructing the child from dependency + params.
+
+        It's the job of the child in this function to create its own form of the dependency,
+        using the dependency object provided by the parent.
+        """
 
 
 # New ChannelChild base class
 R_dep = TypeVar("R_dep", bound=Dependency)
+PC = TypeVar("PC", bound=ChannelChildParams[Any])
 
 
-class ChannelChild(Child[R_dep]):
+class ChannelChild(Child[R_dep, PC], Generic[R_dep, PC]):
     """
     Base class for children whose params are ChannelChildParams (fixed number of channels).
 
@@ -267,16 +304,36 @@ class ChannelChild(Child[R_dep]):
       - convenience helpers for channels
     """
 
-    params: ChannelChildParams[Any]
+    params: PC
     _dep: R_dep
 
-    def __init__(self, dep: R_dep, params: ChannelChildParams[Any]):
+    def __init__(self, dep: R_dep, params: PC):
         self._dep = dep
         self.params = params
 
-    # Convenience helpers
     def child_keys(self) -> list[int]:
         return sorted(int(k) for k in self.params.children.keys())
 
     def get_child(self, idx: int) -> Any:
-        return self.params.children[str(idx)]
+        """Return params object for a child channel index, with clearer error if missing."""
+        try:
+            return self.params.children[str(idx)]
+        except KeyError as e:
+            raise KeyError(
+                f"Child index {idx} not found. Existing indices: {self.child_keys()}"
+            ) from e
+
+
+# Public export surface
+__all__ = [
+    "Dependency",
+    "ChildParams",
+    "ChannelChildParams",
+    "ParentParams",
+    "Parent",
+    "ParentFactory",
+    "Child",
+    "ChannelChild",
+    "assert_params_init_alignment",
+    "params_alignment",
+]

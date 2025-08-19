@@ -3,7 +3,6 @@ import sys
 import pathlib
 import pytest
 
-from lib.instruments.sim900.modules.sim970 import Sim970Params
 
 # Ensure project root (containing 'lib') is on path when tests run BEFORE imports
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -13,6 +12,7 @@ if str(ROOT) not in sys.path:
 from lib.instruments.general.prologix import PrologixGPIBParams
 from lib.instruments.sim900.sim900 import Sim900Params
 from lib.instruments.sim900.modules.sim928 import Sim928Params
+from lib.instruments.sim900.modules.sim970 import Sim970Params
 
 
 @pytest.fixture(autouse=True)
@@ -44,12 +44,9 @@ def patch_serial(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_requested_chain_expression():
-    # EXACT structure requested by user (with defaults for missing required args we added):
-    # PrologixControllerParams(...).corresponding_inst().add_child(
-    #    "3", Sim900Params()
-    # ).add_child("1", Sim928Params())
     controller = PrologixGPIBParams(port="FAKE").create_inst()
     sim900 = controller.add_child("3", Sim900Params())
+
     sim928 = sim900.add_child("1", Sim928Params())
 
     sim970 = sim900.add_child("5", Sim970Params())
@@ -60,4 +57,4 @@ def test_requested_chain_expression():
     assert controller.get_child("3") is sim900
     assert sim900.children.get("1") is sim928
 
-    # PrologixControllerParams(port="FAKE").corresponding_inst().add_child("3", Sim900Params()).add_child("1", Sim928Params()).set_voltage(3.0)
+    print(sim900.children)

@@ -1,11 +1,10 @@
 from __future__ import annotations
 from lib.instruments.general.vsense import VSense
-from lib.instruments.general.parent_child import ChannelChildParams, Child
-from lib.instruments.sim900.comm import Comm
+from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
+from lib.instruments.sim900.comm import Sim900ChildDep
 import time
 import numpy as np
-from typing import Literal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Any, cast
 
 if TYPE_CHECKING:  # avoid circular import at runtime
     from lib.instruments.sim900.sim900 import Sim900Dep
@@ -28,18 +27,18 @@ class Sim970Params(ChannelChildParams["Sim970"]):
         return Sim970
 
 
-class Sim970(Child["Sim900Dep"], VSense):
+class Sim970(Child["Sim900Dep", Sim970Params], VSense):
     """
     SIM970 module in the SIM900 mainframe.
     Voltmeter
     """
 
-    def __init__(self, comm: Comm, params: Sim970Params) -> None:
+    def __init__(self, dep: Sim900ChildDep, params: Sim970Params) -> None:
         """
         :param comm: Communication object for this module
         :param params: Parameters for the module (contains channel info, etc.)
         """
-        self.comm = comm
+        self.dep = dep
         self.channel = params.channel
         self.settling_time = params.settling_time
         self.attribute = params.attribute
@@ -52,13 +51,18 @@ class Sim970(Child["Sim900Dep"], VSense):
         return "lib.instruments.sim900.sim900.Sim900"
 
     @classmethod
-    def from_params(cls, dep: "Sim900Dep", params: Sim970Params):
-        """
-        Factory required by Child ABC. 'dep' must expose serial_comm & gpibAddr.
-        """
-        comm = Comm(dep.serial_comm, dep.gpibAddr, params.slot, offline=params.offline)
-        inst = cls(comm, params)
-        return inst, params
+    def from_params_with_dep(
+        cls, parent_dep: "Sim900Dep", key: str, params: ChildParams[Any]
+    ) -> "Sim970":
+        if not isinstance(params, Sim970Params):
+            raise TypeError(
+                f"Sim970.from_params_with_dep expected Sim970Params, got {type(params).__name__}"
+            )
+
+        comm = Sim900ChildDep(
+            parent_dep.serial, parent_dep.gpibAddr, int(key), offline=params.offline
+        )
+        return cls(comm, params)
 
     def get_voltage(self, channel: int | None = None) -> float:
         """

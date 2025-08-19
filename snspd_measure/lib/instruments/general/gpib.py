@@ -1,4 +1,4 @@
-from lib.instruments.general.serial import SerialComm
+from lib.instruments.general.serial import SerialDep
 import time
 
 
@@ -7,9 +7,9 @@ class GPIBComm:
     GPIB communication layer that can use any underlying serial connection
     """
 
-    def __init__(self, serial_comm: SerialComm, gpibAddr: int, offline: bool = False):
+    def __init__(self, serial_comm: SerialDep, gpibAddr: int, offline: bool = False):
         """
-        :param serial_comm: Shared SerialComm instance from SerialConnection
+        :param serial_comm: Shared SerialDep instance from parent connection
         :param gpibAddr: The GPIB address number [int]
         :param **kwargs: Additional parameters
             offline - if True, don't actually write/read over com

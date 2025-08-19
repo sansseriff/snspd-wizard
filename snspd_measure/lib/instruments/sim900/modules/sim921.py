@@ -1,10 +1,9 @@
-from typing import Literal
-from lib.instruments.general.parent_child import ChannelChildParams, Child
-from typing import TYPE_CHECKING
+from typing import Literal, TYPE_CHECKING, Any, cast
+from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
+from lib.instruments.sim900.comm import Sim900ChildDep
 
 if TYPE_CHECKING:
     from lib.instruments.sim900.sim900 import Sim900Dep
-from lib.instruments.sim900.comm import Comm
 
 
 class Sim921Params(ChannelChildParams["Sim921"]):
@@ -18,11 +17,11 @@ class Sim921Params(ChannelChildParams["Sim921"]):
     attribute: str | None = None
 
     @property
-    def inst(self):  # type: ignore[override]
+    def inst(self):
         return Sim921
 
 
-class Sim921(Child["Sim900Dep"]):
+class Sim921(Child["Sim900Dep", Sim921Params]):
     """
     SIM921 module in the SIM900 mainframe
     Resistance bridge
@@ -33,17 +32,24 @@ class Sim921(Child["Sim900Dep"]):
         return "lib.instruments.sim900.sim900.Sim900"
 
     @classmethod
-    def from_params(cls, dep: "Sim900Dep", params: Sim921Params):
-        comm = Comm(dep.serial_comm, dep.gpibAddr, params.slot, offline=params.offline)
-        inst = cls(comm, params)
-        return inst, params
+    def from_params_with_dep(
+        cls, parent_dep: "Sim900Dep", key: str, params: ChildParams[Any]
+    ) -> "Sim921":
+        if not isinstance(params, Sim921Params):
+            raise TypeError(
+                f"Sim921.from_params_with_dep expected Sim921Params, got {type(params).__name__}"
+            )
+        dep = Sim900ChildDep(
+            parent_dep.serial, parent_dep.gpibAddr, int(key), offline=params.offline
+        )
+        return cls(dep, params)
 
-    def __init__(self, comm: Comm, params: Sim921Params):
+    def __init__(self, dep: Sim900ChildDep, params: Sim921Params):
         """
         :param comm: Communication object for this module
         :param params: Parameters for the module
         """
-        self.comm = comm
+        self.dep = dep
         self.settling_time = params.settling_time
         self.attribute = params.attribute
         self.slot = params.slot
@@ -58,5 +64,5 @@ class Sim921(Child["Sim900Dep"]):
         :return: the resistance in Ohm [float]
         """
         cmd = "RVAL?"
-        res = self.comm.query(cmd)
+        res = self.dep.query(cmd)
         return float(res)

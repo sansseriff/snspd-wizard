@@ -2,24 +2,22 @@ from typing import Any
 import time
 
 from lib.instruments.general.gpib import GPIBComm
-from lib.instruments.general.serial import SerialComm
+from lib.instruments.general.serial import SerialDep
 
 
-class Comm:
+class Sim900ChildDep:
     """
     Communication class for sim900 mainframe modules
     Handles GPIB communication with slot-specific commands
     """
 
-    def __init__(
-        self, serial_comm: SerialComm, gpibAddr: int, slot: int, **kwargs: Any
-    ):
+    def __init__(self, serial_comm: SerialDep, gpibAddr: int, slot: int, **kwargs: Any):
         """
-        :param serial_comm: Shared SerialComm instance from SerialConnection
-        :param gpibAddr: The GPIB address number [int]
-        :param slot: The slot number in the sim900 mainframe [int]
-        :param **kwargs: Additional parameters
-            offline - if True, don't actually write/read over com
+        :param serial_comm: Shared SerialDep instance from parent connection
+            :param gpibAddr: The GPIB address number [int]
+            :param slot: The slot number in the sim900 mainframe [int]
+            :param **kwargs: Additional parameters
+                offline - if True, don't actually write/read over com
         """
         self.gpib_comm = GPIBComm(serial_comm, gpibAddr, **kwargs)
         self.slot = slot
@@ -58,23 +56,3 @@ class Comm:
         self.write(cmd)
         time.sleep(0.1)  # Small delay for slot communication
         return self.read()
-
-    # def connect(self) -> bool:
-    #     """
-    #     Connect to the instrument
-    #     :return: True if successful
-    #     """
-    #     if self.offline:
-    #         print(f"Connected to offline sim900 slot {self.slot}")
-    #         return True
-    #     return self.gpib_comm.connect()
-
-    # def disconnect(self) -> bool:
-    #     """
-    #     Disconnect from the instrument
-    #     :return: True if successful
-    #     """
-    #     if self.offline:
-    #         print(f"Disconnected from offline sim900 slot {self.slot}")
-    #         return True
-    #     return self.gpib_comm.disconnect()
