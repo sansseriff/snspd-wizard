@@ -1,4 +1,4 @@
-from typing import Literal, TYPE_CHECKING, Any, cast
+from typing import Literal, TYPE_CHECKING, Any
 from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
 from lib.instruments.sim900.comm import Sim900ChildDep
 
@@ -21,7 +21,7 @@ class Sim921Params(ChannelChildParams["Sim921"]):
         return Sim921
 
 
-class Sim921(Child["Sim900Dep", Sim921Params]):
+class Sim921(Child[Sim900Dep, Sim921Params]):
     """
     SIM921 module in the SIM900 mainframe
     Resistance bridge

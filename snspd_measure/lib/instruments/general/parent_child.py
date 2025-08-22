@@ -10,20 +10,26 @@ class Dependency(ABC):
     pass
 
 
+# New common base for any instrument (parent, child, or hybrid)
+class Instrument(ABC):
+    pass
+
+
 I_co = TypeVar("I_co", bound="Child[Any, Any]", covariant=True)
-
 P_co = TypeVar("P_co", bound="Parent[Any, Any]", covariant=True)
+E_co = TypeVar("E_co", bound="Instrument", covariant=True)
 
 
-class NeedsDepsToInstantiate(Generic[I_co], ABC):
+class Params2Inst(Generic[E_co], ABC):
     """
-    Has a corresponding instrument instance, but that instance may require resources not
-    included in the params object. Like a comm object from a parent.
+    Mixin for parameter classes that can provide their corresponding instrument class.
+    The instrument instance may require resources not included in the params object,
+    such as a communication object from a parent instrument.
     """
 
     @property
     @abstractmethod
-    def inst(self) -> type[I_co]: ...
+    def inst(self) -> type[E_co]: ...
 
 
 class CanInstantiate(Generic[P_co], ABC):
@@ -33,6 +39,7 @@ class CanInstantiate(Generic[P_co], ABC):
 
     @abstractmethod
     def create_inst(self) -> P_co:
+        # this typically calls self.inst.from_params(self) or similar, possibly using internal deps
         pass
 
 
@@ -43,7 +50,7 @@ class CanInstantiate(Generic[P_co], ABC):
 # and I want
 
 
-class ChildParams(BaseModel, Generic[I_co], NeedsDepsToInstantiate[I_co]):
+class ChildParams(Instrument, BaseModel, Params2Inst[I_co], Generic[I_co]):
     """Base class for all child parameter objects.
 
     Generic over the concrete Child instrument type (I_co). This lets APIs
@@ -56,6 +63,15 @@ class ChildParams(BaseModel, Generic[I_co], NeedsDepsToInstantiate[I_co]):
         if not hasattr(self, "type") or getattr(self, "type") is None:
             raise ValueError("Missing required 'type' field")
         return self
+
+    @property
+    @abstractmethod
+    def inst(self) -> type[I_co]: ...
+
+    """
+    This needs to be here even though a very similar property exist in Params2Inst. The key is that
+    here we're specifying that .inst doesn't just return an Instrument, it returns specifically a Child
+    """
 
 
 class ChannelChildParams(ChildParams[I_co], Generic[I_co]):
@@ -102,14 +118,23 @@ P = TypeVar("P", bound=ChildParams[Any])
 PR_co = TypeVar("PR_co", bound="Parent[Any, Any]")
 
 
-class ParentParams(BaseModel, Generic[R, P]):
-    """A submodule that is a limited subset of the full module."""
+class ParentParams(BaseModel, Params2Inst[PR_co], Generic[PR_co, R, P]):
+    """
+
+    PR_co: Corresponding Parent instrument type
+    R: Dependency type (e.g., Comm)
+    P: ChildParams subtype for children
 
     # Use Field to avoid shared mutable default
     children: dict[str, P] = Field(default_factory=dict)
+    """
+
+    @property
+    @abstractmethod
+    def inst(self) -> type[PR_co]: ...
 
 
-class Parent(ABC, Generic[R, P]):
+class Parent(Instrument, ABC, Generic[R, P]):
     """
     R: dependency type (e.g., Comm)
     P: ChildParams subtype for children
@@ -149,7 +174,9 @@ class Parent(ABC, Generic[R, P]):
         """
 
 
-PP = TypeVar("PP", bound=ParentParams[Any, Any])  # any concrete ParentParams subtype
+PP = TypeVar(
+    "PP", bound=ParentParams[Any, Any, Any]
+)  # any concrete ParentParams subtype
 PR = TypeVar("PR", bound="Parent[Any, Any]")  # any concrete Parent subtype
 
 
@@ -190,7 +217,7 @@ def _collect_init_param_names(cls: type) -> Set[str]:
 def assert_params_init_alignment(
     *,
     parent_cls: Type[Any],
-    params_cls: Type[ParentParams[Any, Any]],
+    params_cls: Type[ParentParams[Any, Any, Any]],
     exclude: Iterable[str] = ("children",),
     allow_missing: bool = False,
     allow_extra: bool = False,
@@ -218,46 +245,18 @@ def assert_params_init_alignment(
         )
 
 
-def params_alignment(
-    params_cls: Type[ParentParams[Any, Any]],
-    *,
-    exclude: Iterable[str] = ("children",),
-    allow_missing: bool = False,
-    allow_extra: bool = False,
-):
-    """Class decorator to enforce alignment at definition time.
-
-    Example:
-        @params_alignment(MyParentParams, exclude={"children"})
-        class MyParent(...):
-            ...
-    """
-
-    def decorator(parent_cls: Type[Any]) -> Type[Any]:
-        assert_params_init_alignment(
-            parent_cls=parent_cls,
-            params_cls=params_cls,
-            exclude=exclude,
-            allow_missing=allow_missing,
-            allow_extra=allow_extra,
-        )
-        return parent_cls
-
-    return decorator
-
-
 C = TypeVar("C", bound="Child[Any, Any]")
 # Replace old Child with param-generic version
 P_child = TypeVar("P_child", bound=ChildParams[Any])
 
 
-class Child(ABC, Generic[R, P_child]):
+class Child(Instrument, ABC, Generic[R, P_child]):
     """Generic child instrument / module interface.
 
     R: dependency type passed down by the parent. The child may make a new dep
     object for internal use, using the parent's key that refers to this child.
 
-    P: concrete ChildParams subtype describing configuration for this child
+    P_child: concrete ChildParams subtype describing configuration for this child
 
     Subclasses implement from_params with their concrete (R, P) and return their
     own class type. The generic signature with the "cls: type[C]" pattern allows
@@ -335,5 +334,5 @@ __all__ = [
     "Child",
     "ChannelChild",
     "assert_params_init_alignment",
-    "params_alignment",
+    "CanInstantiate",
 ]

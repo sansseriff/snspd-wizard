@@ -9,7 +9,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from lib.instruments.general.prologix import PrologixGPIBParams
+from lib.instruments.general.prologix_gpib import PrologixGPIBParams
 from lib.instruments.sim900.sim900 import Sim900Params
 from lib.instruments.sim900.modules.sim928 import Sim928Params
 from lib.instruments.sim900.modules.sim970 import Sim970Params
@@ -20,7 +20,10 @@ def patch_serial(monkeypatch: pytest.MonkeyPatch):
     """Provide a fake serial.Serial so no real hardware is touched."""
 
     class FakeSerial:
-        def __init__(self, *_, **__):
+        def __init__(
+            self,
+            *_,
+        ):
             self.is_open = True
 
         def close(self):

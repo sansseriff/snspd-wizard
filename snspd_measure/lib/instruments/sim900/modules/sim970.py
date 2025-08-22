@@ -4,7 +4,7 @@ from lib.instruments.general.parent_child import ChannelChildParams, Child, Chil
 from lib.instruments.sim900.comm import Sim900ChildDep
 import time
 import numpy as np
-from typing import TYPE_CHECKING, Literal, Any, cast
+from typing import TYPE_CHECKING, Literal, Any
 
 if TYPE_CHECKING:  # avoid circular import at runtime
     from lib.instruments.sim900.sim900 import Sim900Dep
@@ -27,7 +27,7 @@ class Sim970Params(ChannelChildParams["Sim970"]):
         return Sim970
 
 
-class Sim970(Child["Sim900Dep", Sim970Params], VSense):
+class Sim970(Child[Sim900Dep, Sim970Params], VSense):
     """
     SIM970 module in the SIM900 mainframe.
     Voltmeter
@@ -52,7 +52,7 @@ class Sim970(Child["Sim900Dep", Sim970Params], VSense):
 
     @classmethod
     def from_params_with_dep(
-        cls, parent_dep: "Sim900Dep", key: str, params: ChildParams[Any]
+        cls, parent_dep: Sim900Dep, key: str, params: ChildParams[Any]
     ) -> "Sim970":
         if not isinstance(params, Sim970Params):
             raise TypeError(
@@ -74,16 +74,16 @@ class Sim970(Child["Sim900Dep", Sim970Params], VSense):
 
     def _get_voltage_impl(self, channel: int | None, recurse_count: int) -> float:
         """Internal implementation with retry logic"""
-        if self.comm.offline:
+        if self.dep.offline:
             return np.random.uniform()
 
         if channel is None:
             channel = self.channel
 
         cmd = "VOLT? " + str(channel)
-        volts = self.comm.query(cmd)
+        volts = self.dep.query(cmd)
         time.sleep(0.1)
-        volts = self.comm.query(cmd)
+        volts = self.dep.query(cmd)
 
         try:
             output = float(volts)

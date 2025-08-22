@@ -1,7 +1,7 @@
 from lib.instruments.general.vsource import VSource
 from typing import Literal
 from lib.instruments.general.parent_child import Child, ChildParams
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from lib.instruments.sim900.comm import Sim900ChildDep
 
 if TYPE_CHECKING:  # only for type checking to avoid circular import at runtime
@@ -21,7 +21,7 @@ class Sim928Params(ChildParams["Sim928"]):
         return Sim928
 
 
-class Sim928(Child["Sim900Dep", Sim928Params], VSource):
+class Sim928(Child[Sim900Dep, Sim928Params], VSource):
     """
     SIM928 module in the SIM900 mainframe
     Voltage source
@@ -33,7 +33,7 @@ class Sim928(Child["Sim900Dep", Sim928Params], VSource):
 
     @classmethod
     def from_params_with_dep(
-        cls, parent_dep: "Sim900Dep", key: str, params: ChildParams[Any]
+        cls, parent_dep: Sim900Dep, key: str, params: ChildParams[Any]
     ) -> "Sim928":
         if not isinstance(params, Sim928Params):
             raise TypeError(

@@ -43,7 +43,7 @@ class Sim900Dep(Dependency):
 
 
 class Sim900Params(
-    ParentParams[Sim900Dep, Sim900ChildParams], ChannelChildParams["Sim900"]
+    ParentParams["Sim900", Sim900Dep, Sim900ChildParams], ChannelChildParams["Sim900"]
 ):
     """Parameters for SIM900 mainframe (hybrid Parent + Child)."""
 
@@ -116,6 +116,7 @@ class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child[SerialDep, Any]):
     def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
         self.params.children[key] = params  # type: ignore[assignment]
         child_cls = params.inst
+
         child = child_cls.from_params_with_dep(self.dep, key, params)
         # Record in children dict with erased union type
         self.children[key] = cast(Child[Sim900Dep, Any], child)
