@@ -146,7 +146,7 @@ class MeasurementSetup:
 
             # Look for the template file to analyze required instruments
             template_file = (
-                measurement_dir / f"{measurement_dir.name}Params.template.py"
+                measurement_dir / f"{measurement_dir.name}_setup_template.py"
             )
 
             try:

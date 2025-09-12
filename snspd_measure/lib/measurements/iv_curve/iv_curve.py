@@ -12,18 +12,19 @@ Based on the original ivCurve.py from Alex Walter.
 import time
 import traceback
 import numpy as np
-from typing import Dict, Any, Generator, Optional
+from typing import TYPE_CHECKING, Dict, Any, Generator, Optional
 from dataclasses import dataclass
 
-from lib.utilities.plotter import Plotter
-from lib.utilities.data_handler import IVDataHandler
+from utilities.plotter import Plotter
 
-from snspd_measure.lib.instruments.general.vsource import VSource
-from snspd_measure.lib.instruments.general.vsense import VSense
-from lib.measurements.ivCurve.ivcurve_params import IVCurveParams
-from lib.measurements.general.genericMeasurement import GenericMeasurement
+from instruments.general.vsource import VSource
+from instruments.general.vsense import VSense
 
-from lib.measurements.ivCurve.ivCurveParams import IVCurveResources
+from measurements.general.genericMeasurement import GenericMeasurement
+
+if TYPE_CHECKING:
+    from iv_curve_setup_template import IVCurveResources, IVCurveParams
+
 
 
 class IVCurveMeasurement(GenericMeasurement):
@@ -34,7 +35,7 @@ class IVCurveMeasurement(GenericMeasurement):
     voltage sourcing, current measurement, data collection, and plotting.
     """
 
-    def __init__(self, resources: IVCurveResources):
+    def __init__(self, resources: "IVCurveResources"):
         """
         Initialize IV curve measurement.
 

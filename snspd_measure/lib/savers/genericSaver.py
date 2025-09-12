@@ -1,3 +1,4 @@
+from typing import Any
 from abc import ABC, abstractmethod
 
 
@@ -11,7 +12,7 @@ class GenericSaver(ABC):
     """
 
     @abstractmethod
-    def save(self, data: dict) -> None:
+    def save(self, data: dict[str, Any]) -> None:
         """
         Save the provided data.
 

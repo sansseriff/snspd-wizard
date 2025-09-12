@@ -7,4 +7,4 @@ if [[ "$1" == "--debug" ]]; then
 fi
 
 # Navigate to the backend directory and run the Python script with the debug flag if provided
-uv run wizard/backend/main.py $DEBUG_FLAG
+uv run ./backend/main.py $DEBUG_FLAG

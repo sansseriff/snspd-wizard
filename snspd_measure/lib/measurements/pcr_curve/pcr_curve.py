@@ -16,7 +16,7 @@ from typing import Optional, Generator, Tuple, Dict, Any
 from pathlib import Path
 
 from ...utilities.plotter import PlotManager
-from ...utilities.data_handler import DataHandler
+from ...utilities import DataHandler
 from ...instruments.general.vsource import GenericSource
 from ...instruments.general.vsense import GenericSense, GenericCounter
 

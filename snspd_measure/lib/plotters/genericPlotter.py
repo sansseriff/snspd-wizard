@@ -1,3 +1,8 @@
+"""Deprecated shim. Use lib.plotters.plotter instead."""
+
+from .plotter import GenericPlotter  # re-export for backward compatibility
+
+__all__ = ["GenericPlotter"]
 from abc import ABC, abstractmethod
 
 

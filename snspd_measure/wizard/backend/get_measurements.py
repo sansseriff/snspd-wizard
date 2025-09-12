@@ -11,44 +11,49 @@ def _extract_instruments_from_template(env: Env, template_file: Path) -> Dict[st
     """Extract required instrument types from template file by importing it as a module."""
     required_instruments: Dict[str, Any] = {}
 
-    try:
-        # Convert file path to module name, just like in discover_instruments()
-        rel_path = template_file.relative_to(env.base_dir)
-        module_name = str(rel_path.with_suffix(""))
-        module_name = module_name.replace("/", ".")
+    print("running _extract_instruments_from_template")
 
-        # Ensure base_dir is on sys.path for import to succeed
-        base_dir_str = str(env.base_dir)
-        if base_dir_str not in sys.path:
-            sys.path.insert(0, base_dir_str)
+    # try:
+    # Convert file path to module name, just like in discover_instruments()
+    rel_path = template_file.relative_to(env.base_dir)
+    print("rel path is", rel_path)
+    module_name = str(rel_path.with_suffix(""))
+    module_name = module_name.replace("/", ".")
+    print("module name is", module_name)
 
-        # Import the module
-        module = importlib.import_module(module_name)
+    # Ensure base_dir is on sys.path for import to succeed
+    base_dir_str = str(env.base_dir)
+    if base_dir_str not in sys.path:
+        sys.path.insert(0, base_dir_str)
 
-        # Find the Resources dataclass
-        resources_class = None
-        for name, obj in inspect.getmembers(module, inspect.isclass):
-            if (
-                name.endswith("Resources")
-                and hasattr(obj, "__annotations__")
-                and obj.__module__ == module.__name__
-            ):
-                resources_class = obj
-                break
+    # Import the module
+    module = importlib.import_module(module_name)
+    print("module imported:", module)
 
-        if not resources_class:
-            print(f"Warning: No Resources class found in {template_file}")
-            return required_instruments
+    # Find the Resources dataclass
+    resources_class = None
+    for name, obj in inspect.getmembers(module, inspect.isclass):
+        if (
+            name.endswith("Resources")
+            and hasattr(obj, "__annotations__")
+            and obj.__module__ == module.__name__
+        ):
+            resources_class = obj
+            break
 
-        # Extract type hints from the dataclass
-        for field_name, field_type in resources_class.__annotations__.items():
-            # Skip non-instrument fields
-            if field_name in ["saver", "plotter", "params"]:
-                continue
-            required_instruments[field_name] = field_type
+    if not resources_class:
+        print(f"Warning: No Resources class found in {template_file}")
+        return required_instruments
 
-    except Exception as e:
-        print(f"Warning: Failed to import template as module: {e}")
+    # Extract type hints from the dataclass
+    for field_name, field_type in resources_class.__annotations__.items():
+        # Skip non-instrument fields
+        if field_name in ["saver", "plotter", "params"]:
+            continue
+        required_instruments[field_name] = field_type
+
+    # except Exception as e:
+    #     print(f"Warning: Failed to import template as module: {e}")
 
     return required_instruments
 
@@ -70,12 +75,15 @@ def reqs_from_measurement(measurement: MeasurementInfo) -> List[str]:
     """Return a list of required instrument role names for a measurement."""
     measurement_dir = measurement.measurement_dir
     template_file = _template_file_for(measurement_dir)
+    print(f"template file is {template_file}")
 
     if not template_file.exists():
+        print("template file does not exist")
         return []
 
     lib_base = _find_lib_base(template_file.parent)
     if lib_base is None:
+        print("could not find lib base")
         return []
 
     env = Env(base_dir=lib_base)
