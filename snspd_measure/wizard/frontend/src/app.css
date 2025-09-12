@@ -1,0 +1,28 @@
+@import 'tailwindcss';
+
+/* Theme tokens (light by default) */
+:root {
+	--bg: #f9fafb; /* gray-50 */
+	--text: #111827; /* gray-900 */
+	--card: #ffffff; /* white */
+	--muted: #6b7280; /* gray-500 */
+	--primary: #4f46e5; /* indigo-600 */
+}
+
+/* Dark mode via class on html */
+.dark {
+	--bg: #0b1020; /* custom deep gray/blue */
+	--text: #f3f4f6; /* gray-100 */
+	--card: #0f172a; /* slate-900 */
+	--muted: #9ca3af; /* gray-400 */
+	--primary: #6366f1; /* indigo-500 */
+}
+
+html {
+	color-scheme: light dark;
+}
+
+body {
+	background: var(--bg);
+	color: var(--text);
+}

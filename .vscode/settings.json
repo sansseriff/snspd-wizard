@@ -4,6 +4,6 @@
         "*.py.tmpl": "python"
     },
     "python-envs.pythonProjects": [],
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.defaultInterpreterPath": "${workspaceFolder}/snspd_measure/.venv/bin/python",
 
 }

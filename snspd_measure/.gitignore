@@ -9,3 +9,6 @@ projects/
 
 # ignore all .egg-info directories
 **/*.egg-info/
+
+
+wizard/backend/static/

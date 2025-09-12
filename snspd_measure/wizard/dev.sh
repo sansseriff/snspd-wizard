@@ -1,0 +1,1 @@
+cd frontend && SKIP_LOADING=true bun run dev

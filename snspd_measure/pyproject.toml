@@ -15,6 +15,9 @@ dependencies = [
     "pydantic-yaml",
     "ruamel-yaml>=0.18.14",
     "pytest>=8.4.1",
+    "fastapi[standard]>=0.116.1",
+    "pywebview[qt5]>=6.0 ; sys_platform == 'linux'",
+    "pywebview[qt]>=6.0 ; sys_platform != 'linux'",
 ]
 
 [tool.uv.sources]
