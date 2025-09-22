@@ -1,11 +1,9 @@
 from lib.instruments.general.vsource import VSource
 from typing import Literal
 from lib.instruments.general.parent_child import Child, ChildParams
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from lib.instruments.sim900.comm import Sim900ChildDep
-
-if TYPE_CHECKING:  # only for type checking to avoid circular import at runtime
-    from lib.instruments.sim900.sim900 import Sim900Dep
+from lib.instruments.sim900.deps import Sim900Dep
 
 
 class Sim928Params(ChildParams["Sim928"]):

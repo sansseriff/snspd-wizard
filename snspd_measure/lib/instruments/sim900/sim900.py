@@ -19,7 +19,6 @@ from lib.instruments.general.parent_child import (
     ParentParams,
     Child,
     ChannelChildParams,
-    Dependency,
     ChildParams,
 )
 
@@ -28,18 +27,14 @@ from lib.instruments.sim900.modules.sim970 import Sim970Params
 from lib.instruments.sim900.modules.sim921 import Sim921Params
 from lib.instruments.general.serial import SerialDep
 from typing import Any
+from lib.instruments.sim900.deps import Sim900Dep
 
 Sim900ChildParams = Annotated[
     Sim928Params | Sim970Params | Sim921Params, Field(discriminator="type")
 ]
 
 
-class Sim900Dep(Dependency):
-    """Internal dependency passed to SIM modules (holds shared serial + gpib)."""
-
-    def __init__(self, parent_dep: SerialDep, gpibAddr: int):
-        self.serial = parent_dep  # keep attribute name for downstream code
-        self.gpibAddr = gpibAddr
+ 
 
 
 class Sim900Params(
@@ -121,3 +116,7 @@ class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child[SerialDep, Any]):
         # Record in children dict with erased union type
         self.children[key] = cast(Child[Sim900Dep, Any], child)
         return child
+
+
+if __name__ == "__main__":
+    print("yes")

@@ -2,12 +2,10 @@ from __future__ import annotations
 from lib.instruments.general.vsense import VSense
 from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
 from lib.instruments.sim900.comm import Sim900ChildDep
+from lib.instruments.sim900.deps import Sim900Dep
 import time
 import numpy as np
-from typing import TYPE_CHECKING, Literal, Any
-
-if TYPE_CHECKING:  # avoid circular import at runtime
-    from lib.instruments.sim900.sim900 import Sim900Dep
+from typing import Literal, Any
 
 
 class Sim970Params(ChannelChildParams["Sim970"]):

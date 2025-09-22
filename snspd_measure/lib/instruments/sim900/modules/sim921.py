@@ -1,9 +1,7 @@
-from typing import Literal, TYPE_CHECKING, Any
+from typing import Literal, Any
 from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
 from lib.instruments.sim900.comm import Sim900ChildDep
-
-if TYPE_CHECKING:
-    from lib.instruments.sim900.sim900 import Sim900Dep
+from lib.instruments.sim900.deps import Sim900Dep
 
 
 class Sim921Params(ChannelChildParams["Sim921"]):
@@ -33,7 +31,7 @@ class Sim921(Child[Sim900Dep, Sim921Params]):
 
     @classmethod
     def from_params_with_dep(
-        cls, parent_dep: "Sim900Dep", key: str, params: ChildParams[Any]
+        cls, parent_dep: Sim900Dep, key: str, params: ChildParams[Any]
     ) -> "Sim921":
         if not isinstance(params, Sim921Params):
             raise TypeError(

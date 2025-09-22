@@ -14,13 +14,11 @@ from fastapi import HTTPException
 import argparse
 from typing import Any
 from uvicorn import Config, Server
-from models import Env
-import os
-import sys
+from models import Env, OutputReq
 from utils_runtime import has_gui_context, green, get_ipv4_addresses, is_ssh_session
 
 
-from get_measurements import get_measurements, reqs_from_measurement
+from get_measurements import get_measurements, reqs_from_measurement, discover_matching_instruments
 
 
 
@@ -112,6 +110,8 @@ def get_instruments(
 
     print(f"getting instruments for {name}")
 
+
+    # in order to keep pages stateless, we re-aquire all measurements and then select the requested one
     all_meas = get_measurements(env)
     if name not in all_meas:
         raise HTTPException(status_code=404, detail=f"Unknown measurement: {name}")
@@ -119,7 +119,41 @@ def get_instruments(
     choice = all_meas[name]
 
     print("the choice is", choice)
-    return reqs_from_measurement(choice)
+
+    try: 
+        reqs = reqs_from_measurement(choice)
+
+        for req in reqs:
+            # Discover instruments implementing the required base type
+            base_type = req.base_type
+            # base_type may come as a typing alias; ensure we have a Type
+            try:
+                matches = discover_matching_instruments(env, base_type)
+            except Exception as e:
+                print(f"discovery error for {req.variable_name}: {e}")
+                matches = []
+
+            req.matching_instruments = matches
+
+
+        # convert reqs to OutputReq for JSON serialization
+        # must convert req.base_type from type to str
+        reqs = [OutputReq(
+            variable_name=req.variable_name,
+            base_type=str(req.base_type),
+            matching_instruments=req.matching_instruments
+        ) for req in reqs]
+
+        return reqs
+    
+    except Exception as e:
+        print(f"error {e}")
+        # raise HTTPException(status_code=500, detail=f"Error getting requirements: {e}")
+        return {"error": str(e)}
+    
+
+
+
 
 
 @app.get("/api/resources/meta")
