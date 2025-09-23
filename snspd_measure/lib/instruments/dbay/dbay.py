@@ -1,83 +1,99 @@
-from lib.instruments.dbay.comm import Comm
-from typing import List
-from lib.instruments.general.parent import Parent, ParentParams
-from typing import Any, Annotated, Union
+from typing import Any, Annotated, TypeVar, cast
 from pydantic import Field
 
+from lib.instruments.dbay.comm import Comm
+from lib.instruments.general.parent_child import Parent, ParentParams, Child, ChildParams
 from lib.instruments.dbay.modules.dac4d import Dac4DParams, Dac4D
-from lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
-from lib.instruments.dbay.modules.empty import Empty, EmptyParams
+from lib.instruments.dbay.modules.dac16d import Dac16DParams
+from lib.instruments.dbay.modules.empty import EmptyParams, Empty
 
-DBayChildParams = Annotated[
-    Dac4DParams | Dac16DParams | EmptyParams, Field(discriminator="type")
-]
+# TypeVar for method-level inference
+TChild = TypeVar("TChild", bound=Child[Comm, Any])
 
-
-class DBayParams(ParentParams[DBayChildParams]):
-    server_address: str = "10.7.0.4"
-    port: int = 8345
-    num_modules: int = 4
-    modules: dict[str, DBayChildParams] = {}
-
-    def promote(self) -> "DBay":
-        """
-        Promote the parameters to a DBay instance.
-        :return: An instance of DBay
-        """
-        return DBay.from_params(self)
+# For now, restrict to Dac4D until other modules are migrated to the new generics.
+DBayChildParams = Annotated[Dac4DParams, Dac16DParams, EmptyParams, Field(discriminator="type")]
 
 
-class DBay(Parent[DBayParams]):
+class DBay(Parent[Comm, DBayChildParams]):
     def __init__(self, server_address: str, port: int = 8345):
         self.server_address = server_address
         self.port = port
-        self.modules: List[Dac4D | Dac16D | Empty] = [Empty() for _ in range(16)]
         self.comm = Comm(server_address, port)
-        self.load_full_state()
+        self.children: dict[str, Child[Comm, DBayChildParams]] = {}
+        # For convenience keep a snapshot list like before (built on demand)
+        self._module_snapshot: list[Any] | None = None
 
-    def load_full_state(self):
+    @property
+    def dep(self) -> Comm:
+        return self.comm
+
+    def init_child_by_key(self, key: str) -> Child[Comm, DBayChildParams]:
+        params = self.params.children[key]  # type: ignore[attr-defined]
+        child_cls = params.inst
+        child = child_cls.from_params_with_dep(self.dep, key, params)
+        self.children[key] = child
+        return child
+
+    def init_children(self) -> None:
+        for key in list(getattr(self.params, "children", {}).keys()):  # type: ignore[attr-defined]
+            self.init_child_by_key(key)
+
+    def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
+        # Ensure params container exists
+        if not hasattr(self, "params"):
+            # Create minimal params holder if not present
+            self.params = DBayParams(server_address=self.server_address, port=self.port)
+        self.params.children[key] = params  # type: ignore[assignment]
+        child_cls = params.inst
+        child = child_cls.from_params_with_dep(self.dep, key, params)
+        self.children[key] = cast(Child[Comm, Any], child)
+        return child
+
+    # Back-compat helpers
+    def load_full_state(self) -> None:
         response = self.comm.get("full-state")
-        self.instantiate_modules(response["data"])
-
-    def instantiate_modules(self, module_data: list[dict[str, dict[str, Any]]]) -> None:
-        for i, module_info in enumerate(module_data):
-            module_type = module_info["core"]["type"]
-            if module_type == "dac4D":
-                self.modules[i] = Dac4D(module_info, self.comm)
-            elif module_type == "dac16D":
-                self.modules[i] = Dac16D(module_info, self.comm)
+        data: list[dict[str, dict[str, Any]]] = response.get("data", [])
+        # Make a simple snapshot list so previous callers can list modules
+        snapshot: list[Any] = []
+        for module_info in data:
+            t = module_info.get("core", {}).get("type")
+            if t == "dac4D":
+                snapshot.append(Dac4D(module_info, self.comm))
             else:
-                self.modules[i] = Empty()
-
-    @classmethod
-    def from_params(cls, params: DBayParams) -> "DBay":
-        """
-        Create a DBay instance from parameters
-        :param params: Parameters for the DBay mainframe
-        :return: An instance of DBay
-        """
-        return cls(server_address=params.server_address, port=params.port)
-
-    def create_submodule(self, params: DBayChildParams) -> Union[Dac4D, Dac16D, Empty]:
-        slot = params.slot
-
-        # modules should already be instantiated. Return an existing one
-        # other classes that use create_submodule might init the submodule here
-
-        return self.modules[slot] if self.modules[slot] else Empty()
+                snapshot.append(Empty())
+        self._module_snapshot = snapshot
 
     def get_modules(self):
-        return self.modules
+        if self._module_snapshot is None:
+            self.load_full_state()
+        return self._module_snapshot
 
     def list_modules(self):
-        """
-        Pretty-print a list of all modules and their basic status.
-        """
+        modules = self.get_modules() or []
         print("DBay Modules:")
         print("-------------")
-        for i, module in enumerate(self.modules):
+        for i, module in enumerate(modules):
             print(f"Slot {i}: {module}")
         print("-------------")
-        return self.modules
+        return modules
+    
+    @classmethod
+    def from_params(cls, params: "DBayParams") -> "DBay":
+        inst = cls(params.server_address, params.port)
+        inst.params = params  # type: ignore[attr-defined]
+        inst.init_children()
+        return inst
 
-    # Additional methods to interact with the modules can be added here.
+
+class DBayParams(ParentParams["DBay", Comm, DBayChildParams]):
+    server_address: str = "10.7.0.4"
+    port: int = 8345
+    # Use children dict keyed by slot strings, like "0".."15"
+    children: dict[str, DBayChildParams] = {}
+
+    @property
+    def inst(self):  # type: ignore[override]
+        return DBay
+
+    def create_inst(self) -> "DBay":
+        return DBay.from_params(self)

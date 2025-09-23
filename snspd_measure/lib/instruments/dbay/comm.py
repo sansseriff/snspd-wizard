@@ -1,8 +1,9 @@
 import requests
 from typing import Any
+from lib.instruments.general.parent_child import Dependency
 
 
-class Comm:
+class Comm(Dependency):
     def __init__(self, server_address: str, port: int):
         self.server_address = server_address
         self.port = port

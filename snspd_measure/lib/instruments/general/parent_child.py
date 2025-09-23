@@ -172,6 +172,21 @@ class Parent(Instrument, ABC, Generic[R, P]):
         iterating over the self.params.children dict. And therefore filling
         the self.children dict.
         """
+        pass
+
+    @abstractmethod
+    def add_child(self, key: str, params: P) -> "Child[R, Any]":
+        """Add a child by key with the provided params and return the instance.
+
+        Expected behavior:
+          - Store params into self.params.children[key]
+          - Instantiate child via params.inst.from_params_with_dep(self.dep, key, params)
+          - Record in self.children[key]
+          - Return the created child
+          
+        Note: Subclasses should use a generic TypeVar to return more specific types.
+        """
+        pass
 
 
 PP = TypeVar(
