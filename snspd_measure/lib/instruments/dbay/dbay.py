@@ -4,7 +4,7 @@ from pydantic import Field
 from lib.instruments.dbay.comm import Comm
 from lib.instruments.general.parent_child import Parent, ParentParams, Child, ChildParams
 from lib.instruments.dbay.modules.dac4d import Dac4DParams, Dac4D
-from lib.instruments.dbay.modules.dac16d import Dac16DParams
+from lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
 from lib.instruments.dbay.modules.empty import EmptyParams, Empty
 
 # TypeVar for method-level inference
@@ -59,6 +59,8 @@ class DBay(Parent[Comm, DBayChildParams]):
             t = module_info.get("core", {}).get("type")
             if t == "dac4D":
                 snapshot.append(Dac4D(module_info, self.comm))
+            elif t == "dac16D":
+                snapshot.append(Dac16D(module_info, self.comm))
             else:
                 snapshot.append(Empty())
         self._module_snapshot = snapshot

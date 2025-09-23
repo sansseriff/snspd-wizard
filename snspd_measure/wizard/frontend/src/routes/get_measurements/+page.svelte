@@ -28,7 +28,7 @@
 				{#each measurements as m}
 					<li>
 						<button
-							class={`w-full rounded-md px-3 py-3 text-left transition-colors ${selectedName === m.name ? 'bg-gray-100 dark:bg-gray-700/60' : ''} hover:bg-indigo-50 dark:hover:bg-indigo-950/40`}
+							class={`w-full rounded-md px-3 py-3 text-left transition ${selectedName === m.name ? 'bg-gray-200 dark:bg-gray-700' : ''} hover:bg-indigo-50 active:scale-[.99] active:bg-indigo-100 dark:hover:bg-indigo-950/40 dark:active:bg-indigo-900/60`}
 							onclick={() => (selectedName = m.name)}
 						>
 							<div class="flex items-start gap-3">

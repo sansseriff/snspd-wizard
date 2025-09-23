@@ -144,6 +144,8 @@ def get_instruments(
             matching_instruments=req.matching_instruments
         ) for req in reqs]
 
+        print("final reqs:", reqs)
+
         return reqs
     
     except Exception as e:
@@ -186,7 +188,7 @@ def start_window(pipe_send: Connection, url_to_load: str, debug: bool = False):
         pipe_send.send("closed")
 
     _win: Any = webview.create_window(  # type: ignore
-        "SNSPD Wizard",
+        "Lab Wizard",
         url=url_to_load,
         resizable=True,
         width=1200,

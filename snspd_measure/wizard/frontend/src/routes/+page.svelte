@@ -16,7 +16,7 @@
 
 <section class="flex min-h-[60vh] items-center justify-center">
 	<div class="w-full max-w-2xl text-center">
-		<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">SNSPD Wizard</h1>
+		<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Lab Wizard</h1>
 		<p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Choose what you want to do.</p>
 
 		<div class="mt-6 grid gap-3 sm:gap-4">

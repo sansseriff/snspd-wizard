@@ -156,32 +156,12 @@ def discover_matching_instruments(env: Env, base_type: type) -> List[MatchingReq
         package_name = f"lib.instruments.{sub}"
         for module_name, file_path in _iter_py_modules_under(pkg_root, package_name):
             print("attempting import of ", module_name)
-            injected = False
-            prev_value = None
             try:
-                # For SIM900 child modules, inject a dummy Sim900Dep into builtins so
-                # class base generics like Child[Sim900Dep, ...] can resolve.
-                if module_name.startswith("lib.instruments.sim900.modules."):
-                    if hasattr(builtins, "Sim900Dep"):
-                        prev_value = getattr(builtins, "Sim900Dep")
-                    else:
-                        prev_value = None
-                    builtins.Sim900Dep = type("Sim900Dep", (), {})  # type: ignore[attr-defined]
-                    injected = True
 
                 module = importlib.import_module(module_name)
             except Exception as e:
                 print(f"Warning: failed to import {module_name}: {e}")
                 continue
-            finally:
-                if injected:
-                    try:
-                        if prev_value is None:
-                            delattr(builtins, "Sim900Dep")
-                        else:
-                            setattr(builtins, "Sim900Dep", prev_value)
-                    except Exception:
-                        pass
 
             # Scan classes defined in this module
             for name, obj in inspect.getmembers(module, inspect.isclass):
