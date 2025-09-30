@@ -2,16 +2,24 @@ from typing import Any, Annotated, TypeVar, cast
 from pydantic import Field
 
 from lib.instruments.dbay.comm import Comm
-from lib.instruments.general.parent_child import Parent, ParentParams, Child, ChildParams
+from lib.instruments.general.parent_child import (
+    Parent,
+    ParentParams,
+    Child,
+    ChildParams,
+)
 from lib.instruments.dbay.modules.dac4d import Dac4DParams, Dac4D
 from lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
 from lib.instruments.dbay.modules.empty import EmptyParams, Empty
+from typing import Literal
 
 # TypeVar for method-level inference
 TChild = TypeVar("TChild", bound=Child[Comm, Any])
 
 # For now, restrict to Dac4D until other modules are migrated to the new generics.
-DBayChildParams = Annotated[Dac4DParams, Dac16DParams, EmptyParams, Field(discriminator="type")]
+DBayChildParams = Annotated[
+    Dac4DParams | Dac16DParams | EmptyParams, Field(discriminator="type")
+]
 
 
 class DBay(Parent[Comm, DBayChildParams]):
@@ -38,7 +46,11 @@ class DBay(Parent[Comm, DBayChildParams]):
         for key in list(getattr(self.params, "children", {}).keys()):  # type: ignore[attr-defined]
             self.init_child_by_key(key)
 
-    def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
+    def add_child(
+        self,
+        params: ChildParams[TChild],
+        key: str,
+    ) -> TChild:
         # Ensure params container exists
         if not hasattr(self, "params"):
             # Create minimal params holder if not present
@@ -78,7 +90,7 @@ class DBay(Parent[Comm, DBayChildParams]):
             print(f"Slot {i}: {module}")
         print("-------------")
         return modules
-    
+
     @classmethod
     def from_params(cls, params: "DBayParams") -> "DBay":
         inst = cls(params.server_address, params.port)
@@ -88,6 +100,7 @@ class DBay(Parent[Comm, DBayChildParams]):
 
 
 class DBayParams(ParentParams["DBay", Comm, DBayChildParams]):
+    type: Literal["dbay"] = "dbay"
     server_address: str = "10.7.0.4"
     port: int = 8345
     # Use children dict keyed by slot strings, like "0".."15"

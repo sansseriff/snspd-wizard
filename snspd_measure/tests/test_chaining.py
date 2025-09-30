@@ -48,11 +48,11 @@ def patch_serial(monkeypatch: pytest.MonkeyPatch):
 
 def test_requested_chain_expression():
     controller = PrologixGPIBParams(port="FAKE").create_inst()
-    sim900 = controller.add_child("3", Sim900Params())
+    sim900 = controller.add_child(Sim900Params(), "3")
 
-    sim928 = sim900.add_child("1", Sim928Params())
+    sim928 = sim900.add_child(Sim928Params(), "1")
 
-    sim970 = sim900.add_child("5", Sim970Params())
+    sim970 = sim900.add_child(Sim970Params(), "5")
 
     sim928.set_voltage(3.0)
 

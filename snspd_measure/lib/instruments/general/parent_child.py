@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, TypeVar, Generic, Iterable, Set, Type, Self
 import inspect
-from pydantic import BaseModel, model_validator, Field
+from pydantic import BaseModel, model_validator
 
 
 # Move base classes above TypeVar declarations so bounds use real types (not strings)
@@ -74,41 +74,46 @@ class ChildParams(Instrument, BaseModel, Params2Inst[I_co], Generic[I_co]):
     """
 
 
-class ChannelChildParams(ChildParams[I_co], Generic[I_co]):
-    """
-    A submodule that a fixed number of channels.
+# class ChannelChildParams(ChildParams[I_co], Generic[I_co]):
+#     """
+#     A submodule that has a fixed number of channels.
 
-    The validator checks that the channels dict is consistent with num_channels.
-    """
+#     The validator checks that the channels dict is consistent with num_channels.
+#     """
 
-    children: dict[str, Any] = Field(default_factory=dict)
-    num_children: int
+#     num_children: int
 
-    @model_validator(mode="after")
-    def validate_channels(self) -> Self:
-        """Validate that channels dict is consistent with num_children."""
-        # Check if we have too many channels
-        if len(self.children) > self.num_children:
-            raise ValueError(
-                f"Too many channels: found {len(self.children)} channels but num_children is {self.num_children}"
-            )
+#     @property
+#     @abstractmethod
+#     def children(self) -> dict[str, Any]:
+#         """Child configuration dictionary. Must be implemented by subclasses."""
+#         pass
 
-        # Check that all string keys can be converted to valid channel numbers
-        for key in self.children.keys():
-            try:
-                channel_num = int(key)
-            except ValueError:
-                raise ValueError(
-                    f"Channel key '{key}' cannot be converted to an integer"
-                )
+#     @model_validator(mode="after")
+#     def validate_channels(self) -> Self:
+#         """Validate that channels dict is consistent with num_children."""
+#         # Check if we have too many channels
+#         if len(self.children) > self.num_children:
+#             raise ValueError(
+#                 f"Too many channels: found {len(self.children)} channels but num_children is {self.num_children}"
+#             )
 
-            if channel_num < 0 or channel_num >= self.num_children:
-                raise ValueError(
-                    f"Channel number {channel_num} is out of range. "
-                    f"Valid range is 0 to {self.num_children - 1} (num_children = {self.num_children})"
-                )
+#         # Check that all string keys can be converted to valid channel numbers
+#         for key in self.children.keys():
+#             try:
+#                 channel_num = int(key)
+#             except ValueError:
+#                 raise ValueError(
+#                     f"Channel key '{key}' cannot be converted to an integer"
+#                 )
 
-        return self
+#             if channel_num < 0 or channel_num >= self.num_children:
+#                 raise ValueError(
+#                     f"Channel number {channel_num} is out of range. "
+#                     f"Valid range is 0 to {self.num_children - 1} (num_children = {self.num_children})"
+#                 )
+
+#         return self
 
 
 R = TypeVar("R", bound=Dependency)
@@ -175,7 +180,7 @@ class Parent(Instrument, ABC, Generic[R, P]):
         pass
 
     @abstractmethod
-    def add_child(self, key: str, params: P) -> "Child[R, Any]":
+    def add_child(self, params: P, key: str) -> "Child[R, Any]":
         """Add a child by key with the provided params and return the instance.
 
         Expected behavior:
@@ -183,7 +188,7 @@ class Parent(Instrument, ABC, Generic[R, P]):
           - Instantiate child via params.inst.from_params_with_dep(self.dep, key, params)
           - Record in self.children[key]
           - Return the created child
-          
+
         Note: Subclasses should use a generic TypeVar to return more specific types.
         """
         pass
@@ -301,53 +306,58 @@ class Child(Instrument, ABC, Generic[R, P_child]):
 
 # New ChannelChild base class
 R_dep = TypeVar("R_dep", bound=Dependency)
-PC = TypeVar("PC", bound=ChannelChildParams[Any])
+# PC = TypeVar("PC", bound=ChannelChildParams[Any])
 
 
-class ChannelChild(Child[R_dep, PC], Generic[R_dep, PC]):
-    """
-    Base class for children whose params are ChannelChildParams (fixed number of channels).
+# class ChannelChild(Child[R_dep, PC], Generic[R_dep, PC]):
+#     """
+#     Base class for children whose params are ChannelChildParams (fixed number of channels).
 
-    Subclass responsibilities:
-      - implement parent_class property (name of expected parent class)
-      - add any channel-specific behavior
+#     Subclass responsibilities:
+#       - implement parent_class property (name of expected parent class)
+#       - add any channel-specific behavior
 
-    Provided:
-      - dep / params storage
-      - from_params factory matching current Child API
-      - convenience helpers for channels
-    """
+#     Provided:
+#       - dep / params storage
+#       - from_params factory matching current Child API
+#       - convenience helpers for channels
+#     """
 
-    params: PC
-    _dep: R_dep
+#     params: PC
+#     _dep: R_dep
 
-    def __init__(self, dep: R_dep, params: PC):
-        self._dep = dep
-        self.params = params
+#     def __init__(self, dep: R_dep, params: PC):
+#         self._dep = dep
+#         self.params = params
 
-    def child_keys(self) -> list[int]:
-        return sorted(int(k) for k in self.params.children.keys())
+#     @property
+#     def dep(self) -> R_dep:
+#         """Access to the dependency object."""
+#         return self._dep
 
-    def get_child(self, idx: int) -> Any:
-        """Return params object for a child channel index, with clearer error if missing."""
-        try:
-            return self.params.children[str(idx)]
-        except KeyError as e:
-            raise KeyError(
-                f"Child index {idx} not found. Existing indices: {self.child_keys()}"
-            ) from e
+#     def child_keys(self) -> list[int]:
+#         return sorted(int(k) for k in self.params.children.keys())
+
+#     def get_child(self, idx: int) -> Any:
+#         """Return params object for a child channel index, with clearer error if missing."""
+#         try:
+#             return self.params.children[str(idx)]
+#         except KeyError as e:
+#             raise KeyError(
+#                 f"Child index {idx} not found. Existing indices: {self.child_keys()}"
+#             ) from e
 
 
 # Public export surface
 __all__ = [
     "Dependency",
     "ChildParams",
-    "ChannelChildParams",
+    # "ChannelChildParams",
     "ParentParams",
     "Parent",
     "ParentFactory",
     "Child",
-    "ChannelChild",
+    # "ChannelChild",
     "assert_params_init_alignment",
     "CanInstantiate",
 ]

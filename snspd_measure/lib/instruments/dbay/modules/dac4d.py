@@ -6,19 +6,21 @@ from lib.instruments.dbay.addons.vsource import IVsourceAddon
 from lib.instruments.general.parent_child import (
     Child,
     ChildParams,
-    ChannelChildParams,
+    # ChannelChildParams,
     Parent,
 )
 from lib.instruments.general.vsource import VSource
 from pydantic import BaseModel
 from typing import Any
 from typing import Any, TypeVar
-
+from pydantic import Field
 
 # TypeVar for method-level inference
 TChild = TypeVar("TChild", bound=Child[Comm, Any])
 
+
 class Dac4DChannelParams(ChildParams["Dac4DChannel"]):
+    type: Literal["dac4D_channel"] = "dac4D_channel"
     resource: str | None = None
 
     @property
@@ -32,15 +34,15 @@ the module, while Dac4DParams is used to store the 'path' to any particular chan
 
 
 If a channel is to be used in an experiment, Dac4DParams will be given a key/value pair
-in the channels dict, and the Dac4DChannelParams class will be given a resource string
+in the children dict, and the Dac4DChannelParams class will be given a resource string
 """
 
 
-class Dac4DParams(ChannelChildParams["Dac4D"]):
+class Dac4DParams(ChildParams["Dac4D"]):
     type: Literal["dac4D"] = "dac4D"
     name: str = "Dac4D"
-    channels: dict[str, Dac4DChannelParams] = {}
     num_children: int = 4
+    children: dict[str, Dac4DChannelParams] = Field(default_factory=dict)
 
     @property
     def inst(self):  # type: ignore[override]
@@ -59,6 +61,7 @@ class Dac4DState(BaseModel):
 
 # TypeVar for method-level inference
 TChild = TypeVar("TChild", bound=Child[Comm, Any])
+
 
 class Dac4DChannel(Child[Comm, Dac4DChannelParams], VSource):
     """Individual channel of a Dac4D module that implements the VSource interface."""
@@ -96,7 +99,11 @@ class Dac4DChannel(Child[Comm, Dac4DChannelParams], VSource):
         # Fallback: create a dummy channel with minimal state; callers should prefer
         # Dac4D to materialize channels from server state.
         dummy_state = ChSourceState(
-            index=ch_idx, bias_voltage=0.0, activated=False, heading_text="CH", measuring=False
+            index=ch_idx,
+            bias_voltage=0.0,
+            activated=False,
+            heading_text="CH",
+            measuring=False,
         )
         return cls(parent_dep, -1, ch_idx, dummy_state)
 
@@ -195,7 +202,7 @@ class Dac4D(Child[Comm, Dac4DParams], Parent[Comm, Dac4DChannelParams]):
         # Create individual channel objects as children
         for i in range(4):
             ch_params = Dac4DChannelParams()
-            self.add_child(str(i), ch_params)
+            self.add_child(ch_params, str(i))
 
         self.connected = True  # Mark as connected after successful initialization
 
@@ -229,7 +236,9 @@ class Dac4D(Child[Comm, Dac4DParams], Parent[Comm, Dac4DChannelParams]):
 
     def init_child_by_key(self, key: str) -> "Child[Comm, Dac4DChannelParams]":
         idx = int(key)
-        ch = Dac4DChannel(self.comm, self.core.slot, idx, self.data.vsource.channels[idx])
+        ch = Dac4DChannel(
+            self.comm, self.core.slot, idx, self.data.vsource.channels[idx]
+        )
         self.children[key] = ch
         return ch
 
@@ -237,8 +246,8 @@ class Dac4D(Child[Comm, Dac4DParams], Parent[Comm, Dac4DChannelParams]):
         for key in list(self.params.children.keys()):
             self.init_child_by_key(key)
 
-    def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
-        self.params.children[key] = params
+    def add_child(self, params: ChildParams[TChild], key: str) -> TChild:
+        self.params.children[key] = params  # type: ignore[assignment]
         child_cls = params.inst
         child = child_cls.from_params_with_dep(self.dep, key, params)
         self.children[key] = cast(Child[Comm, Any], child)

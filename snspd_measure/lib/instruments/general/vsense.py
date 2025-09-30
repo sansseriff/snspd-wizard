@@ -10,72 +10,57 @@ from abc import ABC, abstractmethod
 
 
 class VSense(ABC):
-    """
-    Abstract base class for all sensing/measurement instruments.
+    """Abstract base class for single-channel sensing instruments.
 
-    This class defines the common interface that all sensing instruments should implement.
-    Sensing instruments include multimeters, counters, oscilloscopes, spectrum analyzers, etc.
+    Rationale for simplification:
+    The original interface accepted an optional channel parameter so that a single
+    VSense implementation could directly represent a multi-channel instrument. We
+    are moving toward a model where each physical channel is represented by its
+    own Child instrument (e.g. Sim970Channel) underneath a parent module (e.g.
+    Sim970). Therefore the abstract API is simplified to a single-channel
+    contract. Multi-channel hardware should expose per-channel children that each
+    implement this interface.
     """
 
     def __init__(self):
         self.connected = False
 
-        """
-        NOTE: There is no 'connect' method here. Connection should happen in the constructor, thereby 
-        following the RAII principle (Resource Acquisition Is Initialization).
-        """
-
     def __del__(self):
-        """
-        Destructor that ensures proper cleanup.
-        Calls disconnect() to handle instrument-specific disconnection.
-        """
         if hasattr(self, "connected") and self.connected:
-            self.disconnect()
+            try:
+                self.disconnect()
+            except Exception:
+                # Avoid raising during GC
+                pass
+
+    # ---- Abstract API ----
+    @abstractmethod
+    def disconnect(self) -> bool: ...
 
     @abstractmethod
-    def disconnect(self) -> bool:
-        """
-        Disconnect from the instrument.
+    def get_voltage(self) -> float: ...
 
-        Returns:
-            bool: True if disconnection successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def get_voltage(self, channel: int | None = None) -> float:
-        """
-        Get the voltage measurement from the instrument.
-
-        Args:
-            channel: Optional channel number for multi-channel instruments
-
-        Returns:
-            float: Measured voltage
-        """
-        pass
+    # ---- Convenience wrappers ----
+    def measure(self) -> float:
+        """Return a voltage measurement (alias used by measurement code)."""
+        return self.get_voltage()
 
 
 class StandInVSense(VSense):
-    """
-    Stand-in class for VSense.
-    This class can be used for testing or as a placeholder when no actual instrument is available.
-    """
+    """Simple stand-in implementation of VSense for tests / CLI scaffolding."""
 
     ignore_in_cli = True
 
     def __init__(self):
-        self.connected = True  # Stand-in is always "connected"
+        super().__init__()
+        self.connected = True
         self.measurement_value = 0.0
-        self.measurement_type = "voltage"
         print("Stand-in sensing instrument initialized.")
 
     def disconnect(self) -> bool:
-        print("This is not a real instrument. Using stand-in GenericSense.")
         self.connected = False
-        return not self.connected
+        print("StandInVSense disconnected (no real hardware).")
+        return True
 
-    def get_voltage(self, channel: int | None = None) -> float:
-        print("This is not a real instrument. Using stand-in GenericSense.")
+    def get_voltage(self) -> float:
         return self.measurement_value

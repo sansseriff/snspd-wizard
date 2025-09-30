@@ -16,6 +16,7 @@ from lib.instruments.general.parent_child import (
 )
 
 from lib.instruments.general.serial import SerialDep
+from typing import Literal
 
 # TypeVar for method-level inference
 TChild = TypeVar("TChild", bound=Child[SerialDep, Any])
@@ -29,6 +30,7 @@ class PrologixGPIBParams(
     ParentParams["PrologixGPIB", SerialDep, PrologixChildParams],
     CanInstantiate["PrologixGPIB"],
 ):
+    type: Literal["prologix_gpib"] = "prologix_gpib"
     port: str = "/dev/ttyUSB0"
     baudrate: int = 9600
     timeout: int = 1
@@ -88,7 +90,7 @@ class PrologixGPIB(
         for key in list(self.params.children.keys()):
             self.init_child_by_key(key)
 
-    def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
+    def add_child(self, params: ChildParams[TChild], key: str) -> TChild:
         self.params.children[key] = params  # type: ignore[assignment]
         child_cls = params.inst
         child = child_cls.from_params_with_dep(self.dep, key, params)
@@ -108,4 +110,4 @@ class PrologixGPIB(
 
 if __name__ == "__main__":
     prologix = PrologixGPIBParams(port="/dev/ttyUSB0").create_inst()
-    sim900 = prologix.add_child("3", Sim900Params())
+    sim900 = prologix.add_child(Sim900Params(), "3")

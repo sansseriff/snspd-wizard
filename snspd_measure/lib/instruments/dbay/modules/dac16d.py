@@ -1,6 +1,6 @@
 from typing import Any, Literal, List, TypeVar, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from lib.instruments.dbay.addons.vsense import ChSenseState
 from lib.instruments.dbay.addons.vsource import (
@@ -14,7 +14,7 @@ from lib.instruments.dbay.state import Core
 from lib.instruments.general.parent_child import (
     Child,
     ChildParams,
-    ChannelChildParams,
+    # ChannelChildParams,
     Parent,
 )
 from lib.instruments.general.vsource import VSource
@@ -33,11 +33,11 @@ class Dac16DChannelParams(ChildParams["Dac16DChannel"]):
         return Dac16DChannel
 
 
-class Dac16DParams(ChannelChildParams["Dac16D"]):
+class Dac16DParams(ChildParams["Dac16D"]):
     type: Literal["dac16D"] = "dac16D"
     name: str = "Dac16D"
-    channels: dict[str, Dac16DChannelParams] = {}
     num_children: int = 16
+    children: dict[str, Dac16DChannelParams] = Field(default_factory=dict)
 
     @property
     def inst(self):  # type: ignore[override]
@@ -58,6 +58,7 @@ class Dac16DState(BaseModel):
 
 
 # ---------------------------- Channel -----------------------------
+
 
 class Dac16DChannel(Child[Comm, Dac16DChannelParams], VSource):
     """Individual channel of a Dac16D module that implements the VSource interface."""
@@ -178,6 +179,7 @@ class Dac16DChannel(Child[Comm, Dac16DChannelParams], VSource):
 
 # ----------------------------- Parent -----------------------------
 
+
 class Dac16D(Child[Comm, Dac16DParams], Parent[Comm, Dac16DChannelParams]):
     @property
     def parent_class(self) -> str:
@@ -200,7 +202,7 @@ class Dac16D(Child[Comm, Dac16DParams], Parent[Comm, Dac16DChannelParams]):
         # Create individual channel objects as children
         for i in range(16):
             ch_params = Dac16DChannelParams()
-            self.add_child(str(i), ch_params)
+            self.add_child(ch_params, str(i))
 
         self.connected = True  # Mark as connected after successful initialization
 
@@ -234,7 +236,9 @@ class Dac16D(Child[Comm, Dac16DParams], Parent[Comm, Dac16DChannelParams]):
 
     def init_child_by_key(self, key: str) -> "Child[Comm, Dac16DChannelParams]":
         idx = int(key)
-        ch = Dac16DChannel(self.comm, self.core.slot, idx, self.data.vsource.channels[idx])
+        ch = Dac16DChannel(
+            self.comm, self.core.slot, idx, self.data.vsource.channels[idx]
+        )
         self.children[key] = ch
         return ch
 
@@ -242,8 +246,8 @@ class Dac16D(Child[Comm, Dac16DParams], Parent[Comm, Dac16DChannelParams]):
         for key in list(self.params.children.keys()):
             self.init_child_by_key(key)
 
-    def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
-        self.params.children[key] = params
+    def add_child(self, params: ChildParams[TChild], key: str) -> TChild:
+        self.params.children[key] = params  # type: ignore[assignment]
         child_cls = params.inst
         child = child_cls.from_params_with_dep(self.dep, key, params)
         self.children[key] = cast(Child[Comm, Any], child)

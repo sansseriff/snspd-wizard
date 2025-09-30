@@ -18,7 +18,7 @@ from lib.instruments.general.parent_child import (
     Parent,
     ParentParams,
     Child,
-    ChannelChildParams,
+    # ChannelChildParams,
     ChildParams,
 )
 
@@ -35,7 +35,7 @@ Sim900ChildParams = Annotated[
 
 
 class Sim900Params(
-    ParentParams["Sim900", Sim900Dep, Sim900ChildParams], ChannelChildParams["Sim900"]
+    ParentParams["Sim900", Sim900Dep, Sim900ChildParams], ChildParams["Sim900"]
 ):
     """Parameters for SIM900 mainframe (hybrid Parent + Child)."""
 
@@ -105,7 +105,7 @@ class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child[SerialDep, Any]):
         for key in list(self.params.children.keys()):
             self.init_child_by_key(key)
 
-    def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
+    def add_child(self, params: ChildParams[TChild], key: str) -> TChild:
         self.params.children[key] = params  # type: ignore[assignment]
         child_cls = params.inst
         child = child_cls.from_params_with_dep(self.dep, key, params)

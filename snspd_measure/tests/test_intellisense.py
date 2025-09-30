@@ -8,16 +8,53 @@ from snspd_measure.lib.instruments.dbay.modules.dac4d import Dac4DChannelParams,
 sim928 = (
     PrologixGPIBParams(port="FAKE")
     .create_inst()
-    .add_child("3", Sim900Params())
-    .add_child("1", Sim928Params())
+    .add_child(Sim900Params(), "3")
+    .add_child(Sim928Params(), "1")
 )
 
 
-thing = PrologixGPIBParams(port="FAKE").create_inst().add_child("3", Sim900Params()).add_child("1", Sim928Params())
+thing = (
+    PrologixGPIBParams(port="FAKE")
+    .create_inst()
+    .add_child(Sim900Params(), "3")
+    .add_child(Sim928Params(), "1")
+)
+
+
+dac4d = (
+    DBayParams(server_address="FAKE")
+    .create_inst()
+    .add_child(Dac4DParams(), "1")
+    .add_child(Dac4DChannelParams(), "2")
+)
+
+dac4d.set_voltage(1.0)
+
+
+inst1 = (
+    Inst("/dev/ttyUSB0", PrologixGPIBParams())
+    .add_child(Sim900Params(), "3")
+    .add_child(Sim928Params(), "1")
+)
+
+
+inst2 = (
+    Inst("Prologix", PrologixGPIBParams())
+    .add_child(Sim900Params(), "sim900")
+    .add_child(Sim928Params(), "1")
+)
+
+
+inst3 = (
+    Inst("Prologix", PrologixGPIBParams())
+    .add_child(Sim900Params(), "sim900_2")
+    .add_child(Sim928Params(), "1")
+)
+
+Inst(PrologixGPIBParams).add_child(Sim900Params).add_child(Sim928Params)
 
 
 
-dac4d = DBayParams(server_address="FAKE").create_inst().add_child("1", Dac4DParams()).add_child("2", Dac4DChannelParams())
 
 dac4d.set_voltage(1)
 print(dac4d.channel_index)

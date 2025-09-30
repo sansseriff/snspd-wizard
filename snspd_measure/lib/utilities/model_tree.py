@@ -1,9 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Annotated, Literal
-from instruments.dbay.dbay import DBayParams
-from instruments.dbay.modules.dac4d import Dac4DParams
-from instruments.sim900.sim900 import Sim900Params
-from instruments.general.serial import SerialConnectionParams
+from lib.instruments.dbay.dbay import DBayParams
+from lib.instruments.general.prologix_gpib import PrologixGPIBParams
 
 
 class FileSaver(BaseModel):
@@ -40,6 +38,7 @@ class MplPlotter(BaseModel):
 
 
 class IVCurveParams(BaseModel):
+    type: Literal["iv_curve"] = "iv_curve"
     start_voltage: float = Field(description="Start voltage for the IV curve")
     stop_voltage: float = Field(description="Stop voltage for the IV curve")
     step_voltage: float = Field(description="Voltage step size for the IV curve")
@@ -47,6 +46,7 @@ class IVCurveParams(BaseModel):
 
 
 class PCRCurveParams(BaseModel):
+    type: Literal["pcr_curve"] = "pcr_curve"
     start_voltage: float = Field(description="Start voltage for the PCR curve")
     stop_voltage: float = Field(description="Stop voltage for the PCR curve")
     step_voltage: float = Field(description="Voltage step size for the PCR curve")
@@ -63,7 +63,7 @@ class Device(BaseModel):
 SaverUnion = Annotated[FileSaver | DatabaseSaver, Field(discriminator="type")]
 PlotterUnion = Annotated[WebPlotter | MplPlotter, Field(discriminator="type")]
 InstrumentUnion = Annotated[
-    DBayParams | SerialConnectionParams, Field(discriminator="type")
+    DBayParams | PrologixGPIBParams, Field(discriminator="type")
 ]
 ExpUnion = Annotated[IVCurveParams | PCRCurveParams, Field(discriminator="type")]
 

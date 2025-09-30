@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 TChild = TypeVar("TChild", bound="Child[Any, Any]")
 
 
-def standard_add_child(parent: "Parent[Any, Any]", key: str, params: "ChildParams[Any]") -> "Child[Any, Any]":
+def standard_add_child(parent: "Parent[Any, Any]", params: "ChildParams[Any]", key: str) -> "Child[Any, Any]":
     """
     Standard implementation of add_child method.
     
     Usage in your Parent class:
     ```python
-    def add_child(self, key: str, params: ChildParams[TChild]) -> TChild:
-        return standard_add_child(self, key, params)  # type: ignore[return-value]
+    def add_child(self, params: ChildParams[TChild], key: str) -> TChild:
+        return standard_add_child(self, params, key)  # type: ignore[return-value]
     ```
     """
     parent.params.children[key] = params  # type: ignore[assignment, attr-defined]

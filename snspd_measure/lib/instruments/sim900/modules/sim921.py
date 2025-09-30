@@ -1,10 +1,10 @@
 from typing import Literal, Any
-from lib.instruments.general.parent_child import ChannelChildParams, Child, ChildParams
+from lib.instruments.general.parent_child import Child, ChildParams
 from lib.instruments.sim900.comm import Sim900ChildDep
 from lib.instruments.sim900.deps import Sim900Dep
 
 
-class Sim921Params(ChannelChildParams["Sim921"]):
+class Sim921Params(ChildParams["Sim921"]):
     """Parameters for SIM921 resistance bridge module"""
 
     type: Literal["sim921"] = "sim921"
