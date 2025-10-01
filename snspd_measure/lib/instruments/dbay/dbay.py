@@ -13,8 +13,6 @@ from lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
 from lib.instruments.dbay.modules.empty import EmptyParams, Empty
 from typing import Literal
 
-# TypeVar for method-level inference
-TChild = TypeVar("TChild", bound=Child[Comm, Any])
 
 # For now, restrict to Dac4D until other modules are migrated to the new generics.
 DBayChildParams = Annotated[
@@ -22,12 +20,33 @@ DBayChildParams = Annotated[
 ]
 
 
+# TypeVar for method-level inference
+TChild = TypeVar("TChild", bound=Child[Comm, Any])
+
+
+class DBayParams(ParentParams["DBay", Comm, DBayChildParams], ChildParams["DBay"]):
+    type: Literal["dbay"] = "dbay"
+    server_address: str = "10.7.0.4"
+    port: int = 8345
+    # Use children dict keyed by slot strings, like "0".."15"
+    children: dict[str, DBayChildParams] = Field(default_factory=dict)
+
+    @property
+    def inst(self):  # type: ignore[override]
+        return DBay
+
+    def create_inst(self) -> "DBay":
+        return DBay.from_params(self)
+
+
 class DBay(Parent[Comm, DBayChildParams]):
     def __init__(self, server_address: str, port: int = 8345):
         self.server_address = server_address
         self.port = port
         self.comm = Comm(server_address, port)
-        self.children: dict[str, Child[Comm, DBayChildParams]] = {}
+        self.children: dict[str, Child[Comm, DBayChildParams]] = Field(
+            default_factory=dict
+        )
         # For convenience keep a snapshot list like before (built on demand)
         self._module_snapshot: list[Any] | None = None
 
@@ -35,7 +54,7 @@ class DBay(Parent[Comm, DBayChildParams]):
     def dep(self) -> Comm:
         return self.comm
 
-    def init_child_by_key(self, key: str) -> Child[Comm, DBayChildParams]:
+    def init_child_by_key(self, key: str) -> Child[Comm, Any]:
         params = self.params.children[key]  # type: ignore[attr-defined]
         child_cls = params.inst
         child = child_cls.from_params_with_dep(self.dep, key, params)
@@ -97,18 +116,3 @@ class DBay(Parent[Comm, DBayChildParams]):
         inst.params = params  # type: ignore[attr-defined]
         inst.init_children()
         return inst
-
-
-class DBayParams(ParentParams["DBay", Comm, DBayChildParams]):
-    type: Literal["dbay"] = "dbay"
-    server_address: str = "10.7.0.4"
-    port: int = 8345
-    # Use children dict keyed by slot strings, like "0".."15"
-    children: dict[str, DBayChildParams] = {}
-
-    @property
-    def inst(self):  # type: ignore[override]
-        return DBay
-
-    def create_inst(self) -> "DBay":
-        return DBay.from_params(self)

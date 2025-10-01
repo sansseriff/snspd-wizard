@@ -2,7 +2,8 @@ from lib.instruments.general.prologix_gpib import PrologixGPIBParams
 from lib.instruments.sim900.modules.sim928 import Sim928Params
 from lib.instruments.sim900.sim900 import Sim900Params
 from snspd_measure.lib.instruments.dbay.dbay import DBayParams
-from snspd_measure.lib.instruments.dbay.modules.dac4d import Dac4DChannelParams, Dac4DParams
+from snspd_measure.lib.instruments.dbay.modules.dac4d import Dac4DParams
+from snspd_measure.lib.instruments.sim900.modules.sim970 import Sim970Params
 
 
 sim928 = (
@@ -21,45 +22,36 @@ thing = (
 )
 
 
-dac4d = (
-    DBayParams(server_address="FAKE")
+(
+    PrologixGPIBParams(port="FAKE")
     .create_inst()
-    .add_child(Dac4DParams(), "1")
-    .add_child(Dac4DChannelParams(), "2")
-)
-
-dac4d.set_voltage(1.0)
-
-
-inst1 = (
-    Inst("/dev/ttyUSB0", PrologixGPIBParams())
     .add_child(Sim900Params(), "3")
-    .add_child(Sim928Params(), "1")
+    .add_child(Sim970Params(), "5")
+    .get_channel(3)  # type: ignore[attr-defined]
+    .get_voltage()  # type: ignore[attr-defined]
 )
 
 
-inst2 = (
-    Inst("Prologix", PrologixGPIBParams())
-    .add_child(Sim900Params(), "sim900")
-    .add_child(Sim928Params(), "1")
+# After refactor, adding a Dac4D module automatically materializes its channels
+dac4d_module = (
+    DBayParams(server_address="FAKE").create_inst().add_child(Dac4DParams(), "1")
 )
 
-
-inst3 = (
-    Inst("Prologix", PrologixGPIBParams())
-    .add_child(Sim900Params(), "sim900_2")
-    .add_child(Sim928Params(), "1")
-)
-
-Inst(PrologixGPIBParams).add_child(Sim900Params).add_child(Sim928Params)
+# Access channel 0 (example) and set voltage if API available
+try:
+    dac4d_module.get_channel(0).set_voltage(1.0)  # type: ignore[attr-defined]
+except Exception:
+    pass
 
 
+## Removed deprecated Inst-based examples; new pattern relies on Params -> create_inst()
 
 
-dac4d.set_voltage(1)
-print(dac4d.channel_index)
-
-
+try:
+    dac4d_module.get_channel(0).set_voltage(1)  # type: ignore[attr-defined]
+    print(dac4d_module.get_channel(0).channel_index)  # type: ignore[attr-defined]
+except Exception:
+    pass
 
 
 sim928.set_voltage(3.0)

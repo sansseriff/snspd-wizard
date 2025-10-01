@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Generic, Iterable, Set, Type, Self
+from typing import Any, TypeVar, Generic, Iterable, Set, Type, Self, Iterator
 import inspect
 from pydantic import BaseModel, model_validator
 
@@ -72,48 +72,6 @@ class ChildParams(Instrument, BaseModel, Params2Inst[I_co], Generic[I_co]):
     This needs to be here even though a very similar property exist in Params2Inst. The key is that
     here we're specifying that .inst doesn't just return an Instrument, it returns specifically a Child
     """
-
-
-# class ChannelChildParams(ChildParams[I_co], Generic[I_co]):
-#     """
-#     A submodule that has a fixed number of channels.
-
-#     The validator checks that the channels dict is consistent with num_channels.
-#     """
-
-#     num_children: int
-
-#     @property
-#     @abstractmethod
-#     def children(self) -> dict[str, Any]:
-#         """Child configuration dictionary. Must be implemented by subclasses."""
-#         pass
-
-#     @model_validator(mode="after")
-#     def validate_channels(self) -> Self:
-#         """Validate that channels dict is consistent with num_children."""
-#         # Check if we have too many channels
-#         if len(self.children) > self.num_children:
-#             raise ValueError(
-#                 f"Too many channels: found {len(self.children)} channels but num_children is {self.num_children}"
-#             )
-
-#         # Check that all string keys can be converted to valid channel numbers
-#         for key in self.children.keys():
-#             try:
-#                 channel_num = int(key)
-#             except ValueError:
-#                 raise ValueError(
-#                     f"Channel key '{key}' cannot be converted to an integer"
-#                 )
-
-#             if channel_num < 0 or channel_num >= self.num_children:
-#                 raise ValueError(
-#                     f"Channel number {channel_num} is out of range. "
-#                     f"Valid range is 0 to {self.num_children - 1} (num_children = {self.num_children})"
-#                 )
-
-#         return self
 
 
 R = TypeVar("R", bound=Dependency)
@@ -304,48 +262,41 @@ class Child(Instrument, ABC, Generic[R, P_child]):
         """
 
 
-# New ChannelChild base class
-R_dep = TypeVar("R_dep", bound=Dependency)
-# PC = TypeVar("PC", bound=ChannelChildParams[Any])
+# ----------------------- ChannelChild Mixin -----------------------
+
+ChanT = TypeVar("ChanT")
 
 
-# class ChannelChild(Child[R_dep, PC], Generic[R_dep, PC]):
-#     """
-#     Base class for children whose params are ChannelChildParams (fixed number of channels).
+class ChannelChild(ABC, Generic[ChanT]):
+    """Mixin for any instrument that internally manages a fixed collection of channel objects.
 
-#     Subclass responsibilities:
-#       - implement parent_class property (name of expected parent class)
-#       - add any channel-specific behavior
+    Provides a small convenience API and an abstract contract that ``channels`` exists.
+    Instruments like Sim970, Dac4D, Dac16D inherit from this to guarantee a stable
+    interface for higher-level code (measurement orchestration, UI, etc.).
+    """
 
-#     Provided:
-#       - dep / params storage
-#       - from_params factory matching current Child API
-#       - convenience helpers for channels
-#     """
+    # Subclasses must set: self.channels: list[ChanT]
+    channels: list[ChanT]
 
-#     params: PC
-#     _dep: R_dep
+    @property
+    def num_channels(self) -> int:
+        return len(self.channels)
 
-#     def __init__(self, dep: R_dep, params: PC):
-#         self._dep = dep
-#         self.params = params
+    def get_channel(self, index: int) -> ChanT:
+        if index < 0 or index >= len(self.channels):
+            raise IndexError(
+                f"Channel index {index} out of range (0..{len(self.channels)-1})"
+            )
+        return self.channels[index]
 
-#     @property
-#     def dep(self) -> R_dep:
-#         """Access to the dependency object."""
-#         return self._dep
+    def __getitem__(self, index: int) -> ChanT:  # allows obj[index]
+        return self.get_channel(index)
 
-#     def child_keys(self) -> list[int]:
-#         return sorted(int(k) for k in self.params.children.keys())
+    def __iter__(self) -> Iterator[ChanT]:
+        return iter(self.channels)
 
-#     def get_child(self, idx: int) -> Any:
-#         """Return params object for a child channel index, with clearer error if missing."""
-#         try:
-#             return self.params.children[str(idx)]
-#         except KeyError as e:
-#             raise KeyError(
-#                 f"Child index {idx} not found. Existing indices: {self.child_keys()}"
-#             ) from e
+    def iter_channels(self) -> Iterator[ChanT]:
+        return iter(self.channels)
 
 
 # Public export surface
@@ -357,7 +308,7 @@ __all__ = [
     "Parent",
     "ParentFactory",
     "Child",
-    # "ChannelChild",
+    "ChannelChild",
     "assert_params_init_alignment",
     "CanInstantiate",
 ]

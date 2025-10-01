@@ -1,4 +1,4 @@
-# SNSPD Wizard 🔮
+# Lab Wizard 🔮
 
 ### A library for instrument control, settings, and experiment management for the testing of Superconducting Nanowire Single Photon Detectors (SNSPDs).
 

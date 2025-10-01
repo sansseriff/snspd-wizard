@@ -71,7 +71,7 @@ class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child[SerialDep, Any]):
     # Child interface requirement
     @property
     def parent_class(self) -> str:
-        return "PrologixGPIB"
+        return "lib.instruments.general.prologix_gpib.PrologixGPIB"
 
     # Child interface factory expected by Parent implementations
     @classmethod

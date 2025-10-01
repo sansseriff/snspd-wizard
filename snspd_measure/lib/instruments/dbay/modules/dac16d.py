@@ -1,6 +1,6 @@
-from typing import Any, Literal, List, TypeVar, cast
+from typing import Any, Literal, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from lib.instruments.dbay.addons.vsense import ChSenseState
 from lib.instruments.dbay.addons.vsource import (
@@ -11,33 +11,94 @@ from lib.instruments.dbay.addons.vsource import (
 )
 from lib.instruments.dbay.comm import Comm
 from lib.instruments.dbay.state import Core
-from lib.instruments.general.parent_child import (
-    Child,
-    ChildParams,
-    # ChannelChildParams,
-    Parent,
-)
+from lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
 from lib.instruments.general.vsource import VSource
 
 
 # ---------------------- Params & State Models ----------------------
 
-TChild = TypeVar("TChild", bound=Child[Comm, Any])
 
+class _Dac16DChannel(VSource):
+    """Internal single channel implementation (no params object)."""
 
-class Dac16DChannelParams(ChildParams["Dac16DChannel"]):
-    resource: str | None = None
+    def __init__(self, comm: Comm, module_slot: int, state: ChSourceState):
+        self.comm = comm
+        self.module_slot = module_slot
+        self.channel_data = state
+        self.channel_index = state.index
+        self.connected = True
 
-    @property
-    def inst(self):  # type: ignore[override]
-        return Dac16DChannel
+    def disconnect(self) -> bool:  # type: ignore[override]
+        if not self.connected:
+            return True
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=self.channel_data.bias_voltage,
+                activated=self.channel_data.activated,
+                heading_text=self.channel_data.heading_text,
+                measuring=False,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+        except Exception:
+            pass
+        self.connected = False
+        return True
+
+    def set_voltage(self, voltage: float) -> bool:  # type: ignore[override]
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=voltage,
+                activated=self.channel_data.activated,
+                heading_text=self.channel_data.heading_text,
+                measuring=True,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error setting voltage on channel {self.channel_index}: {e}")
+            return False
+
+    def turn_on(self) -> bool:  # type: ignore[override]
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=self.channel_data.bias_voltage,
+                activated=True,
+                heading_text=self.channel_data.heading_text,
+                measuring=True,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error turning on channel {self.channel_index}: {e}")
+            return False
+
+    def turn_off(self) -> bool:  # type: ignore[override]
+        try:
+            change = VsourceChange(
+                module_index=self.module_slot,
+                index=self.channel_index,
+                bias_voltage=self.channel_data.bias_voltage,
+                activated=False,
+                heading_text=self.channel_data.heading_text,
+                measuring=True,
+            )
+            self.comm.put("dac16D/vsource/", data=change.model_dump())
+            return True
+        except Exception as e:
+            print(f"Error turning off channel {self.channel_index}: {e}")
+            return False
 
 
 class Dac16DParams(ChildParams["Dac16D"]):
     type: Literal["dac16D"] = "dac16D"
     name: str = "Dac16D"
-    num_children: int = 16
-    children: dict[str, Dac16DChannelParams] = Field(default_factory=dict)
+    num_channels: int = 16
 
     @property
     def inst(self):  # type: ignore[override]
@@ -60,166 +121,32 @@ class Dac16DState(BaseModel):
 # ---------------------------- Channel -----------------------------
 
 
-class Dac16DChannel(Child[Comm, Dac16DChannelParams], VSource):
-    """Individual channel of a Dac16D module that implements the VSource interface."""
-
-    def __init__(
-        self,
-        comm: Comm,
-        module_slot: int,
-        channel_index: int,
-        channel_data: ChSourceState,
-    ):
-        self.comm = comm
-        self.module_slot = module_slot
-        self.channel_index = channel_index
-        self.channel_data = channel_data
-        self.connected = True
-
-    @property
-    def parent_class(self) -> str:
-        return "lib.instruments.dbay.dbay.DBay"
-
-    @classmethod
-    def from_params_with_dep(
-        cls,
-        parent_dep: Comm,
-        key: str,
-        params: ChildParams[Any],
-    ) -> "Dac16DChannel":
-        # key is channel index within a module; here we require module context,
-        # so this factory is not typically used directly. Provide a conservative impl.
-        try:
-            ch_idx = int(key)
-        except ValueError:
-            raise TypeError(f"Channel key must be int-like, got {key!r}")
-        # Fallback: create a dummy channel with minimal state; callers should prefer
-        # Dac16D to materialize channels from server state.
-        dummy_state = ChSourceState(
-            index=ch_idx,
-            bias_voltage=0.0,
-            activated=False,
-            heading_text="CH",
-            measuring=False,
-        )
-        return cls(parent_dep, -1, ch_idx, dummy_state)
-
-    def disconnect(self) -> bool:  # type: ignore[override]
-        """Disconnect this channel by reverting to its original config."""
-        if not self.connected:
-            return True
-
-        try:
-            change = VsourceChange(
-                module_index=self.module_slot,
-                index=self.channel_index,
-                bias_voltage=self.channel_data.bias_voltage,
-                activated=self.channel_data.activated,
-                heading_text=self.channel_data.heading_text,
-                measuring=False,
-            )
-            self.comm.put("dac16D/vsource/", data=change.model_dump())
-            self.connected = False
-            return True
-        except Exception as e:
-            print(f"Error disconnecting dac16D channel {self.channel_index}: {e}")
-            return False
-
-    def set_voltage(self, voltage: float) -> bool:  # type: ignore[override]
-        """Set voltage for this channel."""
-        try:
-            change = VsourceChange(
-                module_index=self.module_slot,
-                index=self.channel_index,
-                bias_voltage=voltage,
-                activated=self.channel_data.activated,
-                heading_text=self.channel_data.heading_text,
-                measuring=True,
-            )
-            self.comm.put("dac16D/vsource/", data=change.model_dump())
-            return True
-        except Exception as e:
-            print(f"Error setting voltage on channel {self.channel_index}: {e}")
-            return False
-
-    def turn_on(self) -> bool:  # type: ignore[override]
-        """Turn on output for this channel."""
-        try:
-            change = VsourceChange(
-                module_index=self.module_slot,
-                index=self.channel_index,
-                bias_voltage=self.channel_data.bias_voltage,
-                activated=True,
-                heading_text=self.channel_data.heading_text,
-                measuring=True,
-            )
-            self.comm.put("dac16D/vsource/", data=change.model_dump())
-            return True
-        except Exception as e:
-            print(f"Error turning on channel {self.channel_index}: {e}")
-            return False
-
-    def turn_off(self) -> bool:  # type: ignore[override]
-        """Turn off output for this channel."""
-        try:
-            change = VsourceChange(
-                module_index=self.module_slot,
-                index=self.channel_index,
-                bias_voltage=self.channel_data.bias_voltage,
-                activated=False,
-                heading_text=self.channel_data.heading_text,
-                measuring=True,
-            )
-            self.comm.put("dac16D/vsource/", data=change.model_dump())
-            return True
-        except Exception as e:
-            print(f"Error turning off channel {self.channel_index}: {e}")
-            return False
-
-
-# ----------------------------- Parent -----------------------------
-
-
-class Dac16D(Child[Comm, Dac16DParams], Parent[Comm, Dac16DChannelParams]):
-    @property
-    def parent_class(self) -> str:
-        return "lib.instruments.dbay.dbay.DBay"
-
+class Dac16D(Child[Comm, Dac16DParams], ChannelChild[_Dac16DChannel]):
     def __init__(self, data: dict[str, Any], comm: Comm):
         self.comm = comm
         self.data = Dac16DState(**data)
-        # Construct core object from flattened data
         self.core = Core(
             slot=self.data.core.slot, type=self.data.core.type, name=self.data.core.name
         )
-
-        # Parent-side containers
-        self.children: dict[str, Child[Comm, Dac16DChannelParams]] = {}
         self.params = Dac16DParams()
-        self.params.children = {}
-        self.params.num_children = 16
+        self.connected = True
+        self.channels: list[_Dac16DChannel] = [
+            _Dac16DChannel(self.comm, self.core.slot, st)
+            for st in self.data.vsource.channels[: self.params.num_channels]
+        ]
 
-        # Create individual channel objects as children
-        for i in range(16):
-            ch_params = Dac16DChannelParams()
-            self.add_child(ch_params, str(i))
+    @property
+    def parent_class(self) -> str:
+        return "lib.instruments.dbay.dbay.DBay"
 
-        self.connected = True  # Mark as connected after successful initialization
-
-    # ---- Child API ----
     @classmethod
     def from_params_with_dep(
-        cls,
-        parent_dep: Comm,
-        key: str,
-        params: ChildParams[Any],
+        cls, parent_dep: Comm, key: str, params: ChildParams[Any]
     ) -> "Dac16D":
-        # Fetch current module state from DBay and construct
         try:
             slot = int(key)
         except ValueError:
             raise TypeError(f"Dac16D requires numeric key for slot, got {key!r}")
-
         full = parent_dep.get("full-state")
         data_list = full.get("data", [])
         module_info = data_list[slot]
@@ -229,51 +156,26 @@ class Dac16D(Child[Comm, Dac16DParams], Parent[Comm, Dac16DChannelParams]):
             )
         return cls(module_info, parent_dep)
 
-    # ---- Parent API ----
     @property
-    def dep(self) -> Comm:
+    def dep(self) -> Comm:  # type: ignore[override]
         return self.comm
 
-    def init_child_by_key(self, key: str) -> "Child[Comm, Dac16DChannelParams]":
-        idx = int(key)
-        ch = Dac16DChannel(
-            self.comm, self.core.slot, idx, self.data.vsource.channels[idx]
-        )
-        self.children[key] = ch
-        return ch
-
-    def init_children(self) -> None:
-        for key in list(self.params.children.keys()):
-            self.init_child_by_key(key)
-
-    def add_child(self, params: ChildParams[TChild], key: str) -> TChild:
-        self.params.children[key] = params  # type: ignore[assignment]
-        child_cls = params.inst
-        child = child_cls.from_params_with_dep(self.dep, key, params)
-        self.children[key] = cast(Child[Comm, Any], child)
-        return child
-
-    def disconnect(self) -> bool:
-        """Disconnect from the dac16D module by disconnecting all channels."""
+    def disconnect(self) -> bool:  # type: ignore[override]
         if not self.connected:
             return True
-
-        for ch in self.children.values():  # type: ignore[attr-defined]
+        for ch in getattr(self, "channels", []):
             try:
-                getattr(ch, "disconnect", lambda: None)()
+                ch.disconnect()
             except Exception:
                 pass
-
         self.connected = False
         return True
 
-    def __del__(self):
-        print("Cleaning up Dac16D instance.")
+    def __del__(self):  # pragma: no cover
         if hasattr(self, "connected") and self.connected:
             self.disconnect()
 
     def __str__(self):
-        """Return a pretty string representation of the Dac16D module."""
         slot = self.core.slot
         active_channels = sum(1 for ch in self.data.vsource.channels if ch.activated)
         return f"Dac16D (Slot {slot}): {active_channels}/16 channels active"
@@ -312,11 +214,12 @@ class Dac16D(Child[Comm, Dac16DParams], Parent[Comm, Dac16DChannelParams]):
                 ch_state.activated = activated
                 ch_state.measuring = True
                 # Update child object if it exists without triggering backend calls
-                child = self.children.get(str(i))
-                if isinstance(child, Dac16DChannel):
-                    child.channel_data.bias_voltage = voltage
-                    child.channel_data.activated = activated
-                    child.channel_data.measuring = True
+                # Update internal channel objects if present
+                if i < len(self.channels):
+                    ch_obj = self.channels[i]
+                    ch_obj.channel_data.bias_voltage = voltage
+                    ch_obj.channel_data.activated = activated
+                    ch_obj.channel_data.measuring = True
 
             return True
         except Exception as e:

@@ -10,17 +10,11 @@ from lib.utilities.model_tree import (
 )
 
 from lib.instruments.dbay.dbay import DBayParams
-from lib.instruments.dbay.modules.dac4d import (
-    Dac4DChannelParams,
-    Dac4DParams,
-)
+from lib.instruments.dbay.modules.dac4d import Dac4DParams
 
 from lib.instruments.general.prologix_gpib import PrologixGPIBParams
 from lib.instruments.sim900.modules.sim928 import Sim928Params
-from lib.instruments.sim900.modules.sim970 import (
-    Sim970Params,
-    Sim970ChannelParams,
-)
+from lib.instruments.sim900.modules.sim970 import Sim970Params
 from lib.instruments.sim900.sim900 import Sim900Params
 
 from ruamel.yaml import YAML
@@ -45,13 +39,7 @@ def create_example_exp() -> Exp:
             "10.7.0.88": DBayParams(
                 server_address="10.7.0.88",
                 port=8345,
-                children={
-                    "1": Dac4DParams(
-                        children={
-                            "1": Dac4DChannelParams(),
-                        }
-                    )
-                },
+                children={"1": Dac4DParams()},
             ),
             "/dev/ttyUSB0": PrologixGPIBParams(
                 port="/dev/ttyUSB0",
@@ -61,12 +49,7 @@ def create_example_exp() -> Exp:
                         children={
                             "1": Sim928Params(),
                             # SIM970 module in slot 5 with one active channel (channel 0)
-                            "5": Sim970Params(
-                                children={
-                                    "0": Sim970ChannelParams()
-                                    # add more channels like "1": Sim970ChannelParams()
-                                }
-                            ),
+                            "5": Sim970Params(),
                         }
                     )
                 },
