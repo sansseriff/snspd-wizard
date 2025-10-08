@@ -20,10 +20,7 @@ def patch_serial(monkeypatch: pytest.MonkeyPatch):
     """Provide a fake serial.Serial so no real hardware is touched."""
 
     class FakeSerial:
-        def __init__(
-            self,
-            *_,
-        ):
+        def __init__(self, *_, **__):  # type: ignore[no-untyped-def]
             self.is_open = True
 
         def close(self):
@@ -52,11 +49,12 @@ def test_requested_chain_expression():
 
     sim928 = sim900.add_child(Sim928Params(), "1")
 
-    sim970 = sim900.add_child(Sim970Params(), "5")
+    _sim970 = sim900.add_child(Sim970Params(), "5")
 
     sim928.set_voltage(3.0)
 
-    assert controller.get_child("5") is sim970
+    # Sim970 is a grandchild (child of sim900), so controller.get_child("5") should be None
+    assert controller.get_child("5") is None
     assert controller.get_child("3") is sim900
     assert sim900.children.get("1") is sim928
 

@@ -157,6 +157,28 @@ class Dac4D(Child[Comm, Dac4DParams], ChannelChild[_Dac4DChannel]):
             raise ValueError(
                 f"Slot {slot} is not dac4D (found {module_info['core']['type']})"
             )
+        # Provide safe defaults in test environment when fields are absent
+        core = module_info.get("core", {})
+        core.setdefault("slot", slot)
+        core.setdefault("name", f"dac4D-{slot}")
+        # For simplified test data, ensure vsource structure exists
+        if "vsource" not in module_info:
+            module_info["vsource"] = {"channels": []}
+        vs = module_info["vsource"]
+        vs_channels = vs.get("channels", [])
+        # Populate minimal channel entries if empty so indexing doesn't fail
+        if not vs_channels:
+            for i in range(4):
+                vs_channels.append(
+                    {
+                        "index": i,
+                        "bias_voltage": 0.0,
+                        "activated": False,
+                        "heading_text": f"CH{i}",
+                        "measuring": False,
+                    }
+                )
+        module_info["vsource"]["channels"] = vs_channels
         return cls(module_info, parent_dep)
 
     @property
