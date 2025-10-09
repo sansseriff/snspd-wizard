@@ -6,6 +6,7 @@ except Exception:  # pragma: no cover
     serial = None  # type: ignore
 
 from lib.instruments.general.parent_child import Dependency
+from lib.instruments.general.comm import parse_descriptor  # for extracting metadata when wrapping channel
 
 
 class SerialDep(Dependency):
@@ -35,12 +36,30 @@ class SerialDep(Dependency):
             self._open_local()
 
     @classmethod
-    def from_channel(
-        cls, port: str, baudrate: int, timeout: int, channel_obj: Any
-    ) -> "SerialDep":
-        return cls(port, baudrate, timeout, channel=channel_obj)
+    def from_channel(cls, channel: Any) -> "SerialDep":  # type: ignore[override]
+        """Construct from an existing CommChannel (single argument only).
+
+        Extracts port/baudrate/timeout from the channel descriptor if it is a
+        serial descriptor; otherwise uses defaults with placeholder port.
+        """
+        port = "<unknown>"
+        baudrate = 9600
+        timeout = 1
+        try:
+            info = parse_descriptor(channel.descriptor)  # type: ignore[attr-defined]
+            if info.get("type") == "serial":
+                port = info.get("port", port)
+                baudrate = int(info.get("baudrate", baudrate))
+                timeout = int(float(info.get("timeout", timeout)))
+        except Exception:
+            pass
+        return cls(port, baudrate, timeout, channel=channel)
 
     def _open_local(self) -> bool:
+        if self._channel is not None:
+            raise RuntimeError(
+                "Cannot open local serial: a CommChannel is already injected in this SerialDep"
+            )
         if serial is None:  # pragma: no cover
             self.offline = True
             return False

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 """Launch the Pyro5 channel broker.
 
-Usage (server side):
-    uv run python -m snspd_measure.wizard.run_broker --host 0.0.0.0 --port 9100
+Usage (server side). Run inside snspd_measure folder:
+    uv run python -m wizard.run_broker --host 127.0.0.1 --port 9100 
 
 Clients then set ComputerParams(mode="remote", server_uri="PYRO:objid@host:port") after
 copying the printed URI (or you can compute it if you fix a name server strategy).

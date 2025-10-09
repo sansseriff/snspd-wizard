@@ -473,6 +473,52 @@ wheels = [
 ]
 
 [[package]]
+name = "lab-wizard"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "dbay" },
+    { name = "fastapi", extra = ["standard"] },
+    { name = "h5py" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pydantic" },
+    { name = "pydantic-yaml" },
+    { name = "pyro5" },
+    { name = "pyserial" },
+    { name = "pytest" },
+    { name = "pyvisa" },
+    { name = "pyvisa-py" },
+    { name = "pywebview" },
+    { name = "pywebview", extra = ["qt"], marker = "sys_platform != 'linux'" },
+    { name = "pywebview", extra = ["qt5"], marker = "sys_platform == 'linux'" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "ruamel-yaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dbay", specifier = ">=0.2.0" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" },
+    { name = "h5py" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "pydantic-yaml", git = "https://github.com/NowanIlfideme/pydantic-yaml?rev=main" },
+    { name = "pyro5", specifier = ">=5.15" },
+    { name = "pyserial" },
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pyvisa" },
+    { name = "pyvisa-py", specifier = ">=0.8.1" },
+    { name = "pywebview", extras = ["qt"], marker = "sys_platform != 'linux'", specifier = ">=6.0" },
+    { name = "pywebview", extras = ["qt5"], marker = "sys_platform == 'linux'", specifier = ">=6.0" },
+    { name = "pyyaml" },
+    { name = "requests", specifier = ">=2.32.4" },
+    { name = "ruamel-yaml", specifier = ">=0.18.14" },
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -947,6 +993,9 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a1/1e/979ea64c98ca26979d8ce11e9a36579e17d22a71f51d7366d6eec3c82c13/pyqt6_sip-13.10.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:8b5d06a0eac36038fa8734657d99b5fe92263ae7a0cd0a67be6acfe220a063e1", size = 112227, upload-time = "2025-05-23T12:26:38.758Z" },
     { url = "https://files.pythonhosted.org/packages/89/63/e5adf350c1c3123d4865c013f164c5265512fa79f09ad464fb2fdf9f9e61/pyqt6_sip-13.10.2-cp313-cp313-win_amd64.whl", hash = "sha256:0b097eb58b4df936c4a2a88a2f367c8bb5c20ff049a45a7917ad75d698e3b277", size = 53527, upload-time = "2025-05-23T12:26:42.625Z" },
     { url = "https://files.pythonhosted.org/packages/58/74/2df4195306d050fbf4963fb5636108a66e5afa6dc05fd9e81e51ec96c384/pyqt6_sip-13.10.2-cp313-cp313-win_arm64.whl", hash = "sha256:cc6a1dfdf324efaac6e7b890a608385205e652845c62130de919fd73a6326244", size = 45373, upload-time = "2025-05-23T12:26:43.536Z" },
+    { url = "https://files.pythonhosted.org/packages/23/57/74b4eb7a51b9133958daa8409b55de95e44feb694d4e2e3eba81a070ca20/pyqt6_sip-13.10.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:8a76a06a8e5c5b1f17a3f6f3c834ca324877e07b960b18b8b9bbfd9c536ec658", size = 112354, upload-time = "2025-10-08T08:44:00.22Z" },
+    { url = "https://files.pythonhosted.org/packages/be/44/b5e78b072d1594643b0f1ff348f2bf54d4adb5a3f9b9f0989c54e33238d6/pyqt6_sip-13.10.2-cp314-cp314-win_amd64.whl", hash = "sha256:3213bb6e102d3842a3bb7e59d5f6e55f176c80880ff0b39d0dac0cfe58313fb3", size = 55098, upload-time = "2025-10-08T08:44:08.943Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/91/357e9fcef5d830c3d50503d35e0357818aca3540f78748cc214dfa015d00/pyqt6_sip-13.10.2-cp314-cp314-win_arm64.whl", hash = "sha256:ce33ff1f94960ad4b08035e39fa0c3c9a67070bec39ffe3e435c792721504726", size = 46088, upload-time = "2025-10-08T08:44:10.014Z" },
 ]
 
 [[package]]
@@ -1087,6 +1136,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/52/04/1833acfa4ddefc5cdcfd76607f1bf494e7b7b658d890626e23026655d599/pyvisa-1.15.0.tar.gz", hash = "sha256:cec3cb91703a2849f6faa42b1ecd7689a0175baabff8ca33fce9f45934ce45e6", size = 236289, upload-time = "2025-04-01T15:52:25.377Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a1/12/4979772f36acceb57664bde282fc7bd3e67f8d0ce85f2a521a05e90baaa5/pyvisa-1.15.0-py3-none-any.whl", hash = "sha256:e3ac8d9e863fbdbbe7e6d4d91401bceb7914d1c4a558a89b2cc755789f1e8309", size = 179199, upload-time = "2025-04-01T15:52:23.631Z" },
+]
+
+[[package]]
+name = "pyvisa-py"
+version = "0.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyvisa" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/55/8d/0f1af2b39feca8868d0692a2c5d0c47f4ad559a051fb678c441fe1e99536/pyvisa_py-0.8.1.tar.gz", hash = "sha256:db53d3219d971d16b8f7c764a93e08475875063635b9ad8ea3c988439833ccdd", size = 102061, upload-time = "2025-09-04T20:48:21.639Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/70/0b/06ccf917ce30d78d75e452d0afc89236b1d384b776c5c33d75c8cc55fbe7/pyvisa_py-0.8.1-py3-none-any.whl", hash = "sha256:31208a2933c1793b4e829ba5f07d265b83f280668df440ee7ee6ac505dea4ee9", size = 82206, upload-time = "2025-09-04T20:48:20.13Z" },
 ]
 
 [[package]]
@@ -1333,50 +1395,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/87/a6771e1546d97e7e041b6ae58d80074f81b7d5121207425c964ddf5cfdbd/sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc", size = 20372, upload-time = "2024-02-25T23:20:04.057Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2", size = 10235, upload-time = "2024-02-25T23:20:01.196Z" },
-]
-
-[[package]]
-name = "snspd-measure-new"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "dbay" },
-    { name = "fastapi", extra = ["standard"] },
-    { name = "h5py" },
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "pydantic" },
-    { name = "pydantic-yaml" },
-    { name = "pyro5" },
-    { name = "pyserial" },
-    { name = "pytest" },
-    { name = "pyvisa" },
-    { name = "pywebview" },
-    { name = "pywebview", extra = ["qt"], marker = "sys_platform != 'linux'" },
-    { name = "pywebview", extra = ["qt5"], marker = "sys_platform == 'linux'" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "ruamel-yaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "dbay", specifier = ">=0.2.0" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" },
-    { name = "h5py" },
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "pydantic", specifier = ">=2.11.7" },
-    { name = "pydantic-yaml", git = "https://github.com/NowanIlfideme/pydantic-yaml?rev=main" },
-    { name = "pyro5", specifier = ">=5.15" },
-    { name = "pyserial" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pyvisa" },
-    { name = "pywebview", extras = ["qt"], marker = "sys_platform != 'linux'", specifier = ">=6.0" },
-    { name = "pywebview", extras = ["qt5"], marker = "sys_platform == 'linux'", specifier = ">=6.0" },
-    { name = "pyyaml" },
-    { name = "requests", specifier = ">=2.32.4" },
-    { name = "ruamel-yaml", specifier = ">=0.18.14" },
 ]
 
 [[package]]

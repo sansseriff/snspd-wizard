@@ -113,13 +113,16 @@ class PrologixGPIB(
         _descriptor = build_serial_descriptor(
             port, baudrate=params.baudrate, timeout=params.timeout
         )
-        # request channel from computer (channel currently unused inside SerialDep legacy path)
+
+
+        # request a serial-like channel from the passed down ComputerDep. 
+        # This can return a local serial resource object or a remote proxy. 
         req = SerialChannelRequest(
             port=port, baudrate=params.baudrate, timeout=params.timeout
         )
-        parent_dep.get_channel(req)
-        # For now we still create a fresh SerialDep (future: integrate channel to avoid reopen)
-        serial_dep = SerialDep.from_channel(port, params.baudrate, params.timeout, None)
+        channel = parent_dep.get_channel(req)
+        # Wrap the existing CommChannel instead of reopening a local serial port
+        serial_dep = SerialDep.from_channel(channel)
         inst = cls(serial_dep, params)
         inst.init_children()
         return inst

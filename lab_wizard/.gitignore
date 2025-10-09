@@ -12,3 +12,5 @@ projects/
 
 
 wizard/backend/static/
+
+.pytest_cache/

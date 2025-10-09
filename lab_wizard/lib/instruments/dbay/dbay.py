@@ -186,6 +186,9 @@ class DBay(
                 pass
         # Channel request for caching (not yet wired into Comm operations)
         req = HttpChannelRequest(host=host, port=port)
+
+        # Based on the internal configuration of paretn_dep, this may return a direct channel (control the local computer)
+        # or it may return a remote channel proxy (for controlling a remote computer over network).
         parent_dep.get_channel(req)
         # Ensure params reflect actual runtime host/port (helpful for debugging / serialization)
         params.server_address = host

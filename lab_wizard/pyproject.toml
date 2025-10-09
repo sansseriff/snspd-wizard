@@ -1,7 +1,7 @@
 [project]
 name = "lab-wizard"
 version = "0.1.0"
-description = "Rewritten SNSPD measurement library"
+description = "A framework for easy setup and control of laboratory experiments."
 requires-python = ">=3.12"
 dependencies = [
     "numpy",
@@ -20,6 +20,7 @@ dependencies = [
     "pywebview[qt]>=6.0 ; sys_platform != 'linux'",
     "pyro5>=5.15",
     "dbay>=0.2.0",
+    "pyvisa-py>=0.8.1",
 ]
 
 [tool.uv.sources]
