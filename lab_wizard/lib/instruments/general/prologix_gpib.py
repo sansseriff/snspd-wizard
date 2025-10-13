@@ -17,7 +17,7 @@ from lib.instruments.general.parent_child import (
 from lib.instruments.general.computer import ComputerDep
 from lib.instruments.general.comm import SerialChannelRequest, build_serial_descriptor
 
-from lib.instruments.general.serial import SerialDep
+from lib.instruments.general.serial import SerialDep, LocalSerialDep
 from typing import Literal
 
 # TypeVar for method-level inference
@@ -95,7 +95,8 @@ class PrologixGPIB(
             raise ValueError(
                 "port must be provided when creating PrologixGPIB top-level"
             )
-        serial_dep = SerialDep(params.port, params.baudrate, params.timeout)
+        # construct a local SerialDep directly
+        serial_dep = LocalSerialDep(params.port, params.baudrate, float(params.timeout))
         inst = cls(serial_dep, params)
         inst.init_children()
         return inst
@@ -115,20 +116,18 @@ class PrologixGPIB(
         )
 
 
-        # request a serial-like channel from the passed down ComputerDep. 
-        # This can return a local serial resource object or a remote proxy. 
-        req = SerialChannelRequest(
-            port=port, baudrate=params.baudrate, timeout=params.timeout
-        )
-        channel = parent_dep.get_channel(req)
-        # Wrap the existing CommChannel instead of reopening a local serial port
-        serial_dep = SerialDep.from_channel(channel)
+        # request a typed SerialDep from the ComputerDep
+        req = SerialChannelRequest(port=port, baudrate=params.baudrate, timeout=params.timeout)
+        serial_dep = parent_dep.get_channel(req)
         inst = cls(serial_dep, params)
         inst.init_children()
         return inst
 
     def disconnect(self):
-        self._dep.disconnect()
+        try:
+            self._dep.close()
+        except Exception:
+            pass
 
     def init_child_by_key(self, key: str) -> Child[SerialDep, Any]:
         child_params = self.params.children[key]

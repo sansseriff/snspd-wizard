@@ -4,7 +4,7 @@ from __future__ import annotations
 
 Minimal local-only implementation; remote mode scaffolding included.
 """
-from typing import Any, Dict, Literal, TypeVar, cast
+from typing import Any, Dict, Literal, TypeVar, cast, overload
 from pydantic import Field
 
 from lib.instruments.general.parent_child import (
@@ -20,21 +20,18 @@ from lib.instruments.general.comm import (
     VisaChannelRequest,
     HttpChannelRequest,
     DummyChannelRequest,
-    CommChannel,
-    LocalSerialBackend,
-    VisaBackend,
-    HttpBackend,
-    RemoteSerialBackend,
-    RemoteVisaBackend,
-    RemoteHttpBackend,
-    DummyBackend,
-    RemoteDummyBackend,
 )
+from lib.instruments.general.serial import LocalSerialDep, RemoteSerialDep, SerialDep
+from lib.instruments.general.visa import LocalVisaDep, RemoteVisaDep, VisaDep
+from lib.instruments.general.http_dep import LocalHttpDep, RemoteHttpDep, HttpDep
+from lib.instruments.general.dummy_dep import LocalDummyDep, RemoteDummyDep, DummyDep
 
 # Type variables
 TChild = TypeVar("TChild", bound=Child[Any, Any])
 
-ChannelRequest = SerialChannelRequest | VisaChannelRequest | HttpChannelRequest
+ChannelRequest = (
+    SerialChannelRequest | VisaChannelRequest | HttpChannelRequest | DummyChannelRequest
+)
 
 
 class ComputerParams(ParentParams["Computer", "ComputerDep", ChildParams[Any]]):  # type: ignore[type-arg]
@@ -58,43 +55,74 @@ class ComputerParams(ParentParams["Computer", "ComputerDep", ChildParams[Any]]):
 class ComputerDep(Dependency):
     def __init__(self, params: ComputerParams):
         self.params = params
-        self._channels: Dict[str, CommChannel] = {}
+        self._channels: Dict[str, Any] = {}
 
-    def get_channel(self, req: ChannelRequest) -> CommChannel:
+    @overload
+    def get_channel(self, req: SerialChannelRequest) -> SerialDep: ...
+
+    @overload
+    def get_channel(self, req: VisaChannelRequest) -> VisaDep: ...
+
+    @overload
+    def get_channel(self, req: HttpChannelRequest) -> HttpDep: ...
+
+    @overload
+    def get_channel(self, req: DummyChannelRequest) -> DummyDep: ...
+
+    def get_channel(self, req: ChannelRequest):
         descriptor = req.descriptor()
         if descriptor in self._channels:
             return self._channels[descriptor]
-        # Backend selection (local or remote)
+
         remote = self.params.mode == "remote" and self.params.server_uri is not None
         if isinstance(req, SerialChannelRequest):
             if remote:
-                backend = RemoteSerialBackend(descriptor, self.params.server_uri)  # type: ignore[arg-type]
+                # ask broker for typed URI
+                uri = self._broker_get_uri("serial", descriptor)
+                dep = RemoteSerialDep(uri)
             else:
-                sreq = cast(SerialChannelRequest, req)
-                backend = LocalSerialBackend(sreq.port, sreq.baudrate, sreq.timeout)  # type: ignore[arg-type]
+                dep = LocalSerialDep(req.port, req.baudrate, float(req.timeout))
         elif isinstance(req, VisaChannelRequest):
             if remote:
-                backend = RemoteVisaBackend(descriptor, self.params.server_uri)  # type: ignore[arg-type]
+                uri = self._broker_get_uri("visa", descriptor)
+                dep = RemoteVisaDep(uri)
             else:
-                vreq = cast(VisaChannelRequest, req)
-                backend = VisaBackend(vreq.resource, vreq.timeout)  # type: ignore[arg-type]
+                dep = LocalVisaDep(req.resource, float(req.timeout))
         elif isinstance(req, HttpChannelRequest):
             if remote:
-                backend = RemoteHttpBackend(descriptor, self.params.server_uri)  # type: ignore[arg-type]
+                uri = self._broker_get_uri("http", descriptor)
+                dep = RemoteHttpDep(uri)
             else:
-                hreq = cast(HttpChannelRequest, req)
-                backend = HttpBackend(hreq.descriptor())
+                dep = LocalHttpDep(req.descriptor())
         elif isinstance(req, DummyChannelRequest):
             if remote:
-                backend = RemoteDummyBackend(descriptor, self.params.server_uri)  # type: ignore[arg-type]
+                uri = self._broker_get_uri("dummy", descriptor)
+                dep = RemoteDummyDep(uri)
             else:
-                dreq = cast(DummyChannelRequest, req)
-                backend = DummyBackend(dreq.name)
+                dep = LocalDummyDep(req.name)
         else:  # pragma: no cover
             raise TypeError(f"Unsupported request type: {type(req)}")
-        chan = CommChannel(backend, descriptor)
-        self._channels[descriptor] = chan
-        return chan
+
+        self._channels[descriptor] = dep
+        return dep
+
+    def _broker_get_uri(self, kind: Literal["serial", "visa", "http", "dummy"], descriptor: str) -> str:
+        # Lazy import to avoid Pyro dependency unless in remote mode
+        try:
+            import Pyro5.api as pyro  # type: ignore
+        except Exception as e:  # noqa: BLE001
+            raise RuntimeError("Remote mode requires Pyro5 installed") from e
+        assert self.params.server_uri is not None
+        with pyro.Proxy(self.params.server_uri) as broker:  # type: ignore
+            if kind == "serial":
+                return str(broker.get_or_create_serial(descriptor))
+            if kind == "visa":
+                return str(broker.get_or_create_visa(descriptor))
+            if kind == "http":
+                return str(broker.get_or_create_http(descriptor))
+            if kind == "dummy":
+                return str(broker.get_or_create_dummy(descriptor))
+        raise ValueError(f"Unknown broker kind: {kind}")
 
 
 class Computer(Parent[ComputerDep, ChildParams[Any]], ParentFactory[ComputerParams, "Computer"]):  # type: ignore[type-arg]

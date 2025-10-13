@@ -4,24 +4,17 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Any
 
-from lib.instruments.general.parent_child import Dependency
-from lib.instruments.general.comm import LocalSerialBackend
-from lib.utilities.codec import ensure_bytes, coerce_bytes
+from lib.instruments.general.comm import DummyBackend
+from lib.utilities.codec import coerce_bytes, ensure_bytes
 
 
-class SerialDep(Dependency, ABC):
-    """Abstract serial-like dependency API.
-
-    Concrete implementations: LocalSerialDep, RemoteSerialDep
-    """
-
+class DummyDep(ABC):
     @property
     @abstractmethod
-    def is_open(self) -> bool:  # pragma: no cover - interface
-        ...
+    def is_open(self) -> bool: ...
 
     @abstractmethod
-    def write(self, data: bytes | str) -> int: ...  # returns bytes written
+    def write(self, data: bytes | str) -> int: ...
 
     @abstractmethod
     def read(self, size: Optional[int] = None) -> bytes: ...
@@ -29,35 +22,28 @@ class SerialDep(Dependency, ABC):
     @abstractmethod
     def readline(self) -> bytes: ...
 
-    def query(self, cmd: str) -> bytes:
-        self.write(cmd)
-        return self.readline()
-
     @abstractmethod
     def close(self) -> None: ...
 
 
 @dataclass
-class LocalSerialDep(SerialDep):
-    port: str
-    baudrate: int = 9600
-    timeout: float = 1.0
-    _backend: LocalSerialBackend | None = None
+class LocalDummyDep(DummyDep):
+    name: str
+    _backend: DummyBackend | None = None
 
-    def _ensure(self) -> LocalSerialBackend:
+    def _ensure(self) -> DummyBackend:
         if self._backend is None:
-            self._backend = LocalSerialBackend(
-                port=self.port, baudrate=self.baudrate, timeout=self.timeout
-            )
+            self._backend = DummyBackend(self.name)
         return self._backend
 
     @property
     def is_open(self) -> bool:
-        b = self._ensure()
-        return b.is_open
+        return True
 
     def write(self, data: bytes | str) -> int:
-        return self._ensure().write(ensure_bytes(data))
+        if isinstance(data, str):
+            data = data.encode()
+        return self._ensure().write(data)
 
     def read(self, size: Optional[int] = None) -> bytes:
         return self._ensure().read(size)
@@ -66,11 +52,10 @@ class LocalSerialDep(SerialDep):
         return self._ensure().readline()
 
     def close(self) -> None:
-        if self._backend is not None:
-            self._backend.close()
+        return None
 
 
-class RemoteSerialDep(SerialDep):  # pragma: no cover - network usage
+class RemoteDummyDep(DummyDep):  # pragma: no cover - network usage
     def __init__(self, uri: str) -> None:
         self._uri = uri
         self._proxy: Any | None = None

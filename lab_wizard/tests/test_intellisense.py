@@ -1,9 +1,9 @@
 from lib.instruments.general.prologix_gpib import PrologixGPIBParams
 from lib.instruments.sim900.modules.sim928 import Sim928Params
 from lib.instruments.sim900.sim900 import Sim900Params
-from snspd_measure.lib.instruments.dbay.dbay import DBayParams
-from snspd_measure.lib.instruments.dbay.modules.dac4d import Dac4DParams
-from snspd_measure.lib.instruments.sim900.modules.sim970 import Sim970Params
+from lib.instruments.dbay.dbay import DBayParams
+from lib.instruments.dbay.modules.dac4d import Dac4DParams
+from lib.instruments.sim900.modules.sim970 import Sim970Params
 
 
 sim928 = (

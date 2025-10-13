@@ -10,7 +10,8 @@ from typing import Literal, Any, cast
 from pydantic import BaseModel
 from lib.instruments.general.parent_child import Child, ChildParams
 from lib.instruments.general.computer import ComputerDep
-from lib.instruments.general.comm import DummyChannelRequest, CommChannel
+from lib.instruments.general.comm import DummyChannelRequest
+from lib.instruments.general.dummy_dep import DummyDep
 
 
 class DummyVoltParams(ChildParams["DummyVolt"]):
@@ -28,7 +29,7 @@ class DummyVoltParams(ChildParams["DummyVolt"]):
 
 
 class DummyVolt(Child[ComputerDep, DummyVoltParams]):
-    def __init__(self, channel: CommChannel, params: DummyVoltParams, dep: ComputerDep):
+    def __init__(self, channel: DummyDep, params: DummyVoltParams, dep: ComputerDep):
         self._channel = channel
         self.params = params
         self._dep = dep
@@ -45,8 +46,11 @@ class DummyVolt(Child[ComputerDep, DummyVoltParams]):
         # Allow key override of resource name for convenience
         resource = key or params.resource_name
         req = DummyChannelRequest(name=resource)
-        channel = parent_dep.get_channel(req)
-        return cls(channel, params, parent_dep)
+        dep = parent_dep.get_channel(req)
+        return cls(dep, params, parent_dep)
+    
+    def parent_class(self) -> str:
+        return "lib.instruments.general.computer.Computer"
 
     @property
     def dep(self) -> ComputerDep:  # type: ignore[override]

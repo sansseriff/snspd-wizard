@@ -277,90 +277,6 @@ class HttpBackend:
         return self.read()
 
 
-# ---------------- Remote Backend Skeleton -----------
-@dataclass
-class _BaseRemoteBackend:
-    descriptor: str
-    uri: str  # pyro URI of remote broker
-    _proxy: Any | None = None
-
-    def open(self) -> None:  # pragma: no cover
-        if self._proxy is None:
-            try:
-                import Pyro5.api as pyro  # type: ignore
-            except Exception as e:  # noqa: BLE001
-                raise RuntimeError("Pyro5 not installed") from e
-            self._proxy = pyro.Proxy(self.uri)
-
-    def close(self) -> None:
-        if self._proxy is not None:
-            try:
-                self._proxy._pyroRelease()
-            except Exception:
-                pass
-
-    @property
-    def is_open(self) -> bool:
-        return self._proxy is not None
-
-    # Common remote operations delegating to broker
-    def write(self, data: bytes) -> int:  # pragma: no cover
-        self.open()
-        assert self._proxy is not None
-        return self._proxy.write(self.descriptor, data)
-
-    def read(self, size: Optional[int] = None) -> bytes:  # pragma: no cover
-        self.open()
-        assert self._proxy is not None
-        payload = self._proxy.read(self.descriptor, size)
-        return self._coerce_bytes(payload)
-
-    def readline(self) -> bytes:  # pragma: no cover
-        self.open()
-        assert self._proxy is not None
-        payload = self._proxy.readline(self.descriptor)
-        return self._coerce_bytes(payload)
-
-    # --- local helper mirroring broker normalization ---
-    def _coerce_bytes(self, payload: Any) -> bytes:
-        import base64
-
-        if isinstance(payload, bytes):
-            return payload
-        if isinstance(payload, dict) and "data" in payload:
-            data_field = payload.get("data")
-            if isinstance(data_field, str):
-                try:
-                    return base64.b64decode(data_field)
-                except Exception:
-                    pass
-        if isinstance(payload, str):
-            return payload.encode()
-        return repr(payload).encode()
-
-
-@dataclass
-class RemoteSerialBackend(_BaseRemoteBackend):
-    """Remote backend for serial descriptors.
-
-    Exists mainly for future serial-specific remote behaviors (e.g., line-ending normalization,
-    latency compensation heuristics, flow control negotiation). Currently identical to base.
-    """
-
-
-@dataclass
-class RemoteVisaBackend(_BaseRemoteBackend):
-    """Remote backend for VISA descriptors.
-
-    Placeholder for VISA-specific remote logic (e.g., chunked read policies, SRQ handling later).
-    """
-
-
-@dataclass
-class RemoteHttpBackend(_BaseRemoteBackend):
-    """Remote backend for HTTP descriptors (rare but keeps symmetry)."""
-
-
 # ---------------- Dummy Backend (test/demo) ---------
 @dataclass
 class DummyBackend:
@@ -402,40 +318,6 @@ class DummyBackend:
         return self.read()
 
 
-@dataclass
-class RemoteDummyBackend(_BaseRemoteBackend):
-    """Remote backend for dummy descriptors."""
-
-
-# ---------------- CommChannel Facade -----------------
-class CommChannel:
-    def __init__(self, backend: BackendProtocol, descriptor: str):
-        self._backend = backend
-        self._descriptor = descriptor
-
-    @property
-    def descriptor(self) -> str:
-        return self._descriptor
-
-    def write(self, data: str | bytes) -> int:
-        if isinstance(data, str):
-            data = data.encode()
-        return self._backend.write(data)
-
-    def read(self, size: Optional[int] = None) -> bytes:
-        return self._backend.read(size)
-
-    def readline(self) -> bytes:
-        return self._backend.readline()
-
-    def query(self, cmd: str) -> bytes:
-        self.write(cmd)
-        return self.readline()
-
-    def close(self) -> None:
-        self._backend.close()
-
-
 __all__ = [
     "SerialChannelRequest",
     "VisaChannelRequest",
@@ -443,13 +325,8 @@ __all__ = [
     "DummyChannelRequest",
     "build_serial_descriptor",
     "parse_descriptor",
-    "CommChannel",
     "LocalSerialBackend",
     "VisaBackend",
     "HttpBackend",
-    "RemoteSerialBackend",
-    "RemoteVisaBackend",
-    "RemoteHttpBackend",
     "DummyBackend",
-    "RemoteDummyBackend",
 ]

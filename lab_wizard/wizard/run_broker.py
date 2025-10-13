@@ -26,8 +26,8 @@ def main():  # pragma: no cover - manual usage
     ap.add_argument("--port", type=int, default=0, help="TCP port (0 = ephemeral)")
     args = ap.parse_args()
 
-    broker = ChannelBroker()
     daemon = pyro.Daemon(host=args.host, port=args.port)
+    broker = ChannelBroker(daemon)
     uri = daemon.register(broker)  # type: ignore[arg-type]
     print(f"ChannelBroker running at {uri}")
     print("Press Ctrl+C to stop.")
