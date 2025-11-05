@@ -14,7 +14,7 @@ from typing import Optional, Union, List
 from pathlib import Path
 from pydantic import BaseModel
 
-from snspd_measure.lib.instruments.general.visa_inst import VisaInst
+from lab_wizard.lib.instruments.general.visa_inst import VisaInst
 
 
 # Instrument Configuration Dataclass

@@ -25,6 +25,8 @@ class Sim970Params(ChildParams["Sim970"]):
     offline: bool | None = False
     settling_time: float = 0.1
     max_retries: int = 3
+    export_name: str = "Sim970"
+    channel_export_names: list[str] | None = None
 
     @property
     def inst(self):  # type: ignore[override]

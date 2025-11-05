@@ -15,8 +15,8 @@ from pathlib import Path
 
 # from lib.utilities.data_handler import DataHandler, MeasurementMetadata
 from lib.utilities.plotter import RealTimePlotter
-from snspd_measure.lib.instruments.general.vsource import VSource
-from snspd_measure.lib.instruments.general.vsense import VSense
+from lab_wizard.lib.instruments.general.vsource import VSource
+from lab_wizard.lib.instruments.general.vsense import VSense
 
 
 class MCRCurveMeasurement:

@@ -10,8 +10,8 @@ import random
 from typing import Any
 from pydantic import BaseModel
 
-from snspd_measure.lib.instruments.general.visa_inst import VisaInst
-from snspd_measure.lib.instruments.general.counter import Counter
+from lab_wizard.lib.instruments.general.visa_inst import VisaInst
+from lab_wizard.lib.instruments.general.counter import Counter
 
 
 class Keysight53220AConfig(BaseModel):
