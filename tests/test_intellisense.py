@@ -1,4 +1,4 @@
-from lib.instruments.general.prologix_gpib import PrologixGPIBParams
+from lab_wizard.instruments.general.prologix_gpib import PrologixGPIBParams
 from lib.instruments.sim900.modules.sim928 import Sim928Params
 from lib.instruments.sim900.sim900 import Sim900Params
 from lib.instruments.dbay.dbay import DBayParams

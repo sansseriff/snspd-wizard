@@ -1,0 +1,28 @@
+type: dbay
+server_address: 10.7.0.4
+port: 8345
+children:
+  - kind: dac4D
+    ref: dbay/modules/dac4D_Slot1.yml
+    key: "1"
+  - kind: dac16D
+    ref: dbay/modules/dac16D_Slot2.yml
+    key: "2"
+  - kind: dac4D
+    ref: dbay/modules/dac4D_Slot3.yml
+    key: "3"
+  - kind: dac16D
+    ref: dbay/modules/dac16D_Slot4.yml
+    key: "4"
+  - kind: dac4D
+    ref: dbay/modules/dac4D_Slot5.yml
+    key: "5"
+  # - kind: dac16D
+  #   ref: dbay/modules/dac16D_Slot6.yml
+  #   key: "6"
+  - kind: dac4D
+    ref: dbay/modules/dac4D_Slot7.yml
+    key: "7"
+  - kind: dac16D
+    ref: dbay/modules/dac16D_Slot8.yml
+    key: "8"

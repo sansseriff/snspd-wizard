@@ -1,0 +1,4 @@
+type: sim970
+settling_time: 0.1
+attribute: sim970_slot2
+

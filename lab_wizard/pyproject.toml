@@ -1,6 +1,6 @@
 [project]
 name = "lab-wizard"
-version = "0.1.0"
+version = "0.0.1"
 description = "A framework for easy setup and control of laboratory experiments."
 requires-python = ">=3.12"
 dependencies = [
@@ -31,4 +31,12 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["instruments*", "measurements*", "utilities*"]
+include = ["lab_wizard*"]
+
+[project.scripts]
+wizard = "lab_wizard.wizard.cli:main"
+
+
+
+
+

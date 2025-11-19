@@ -5,7 +5,7 @@ import inspect
 import sys
 import builtins
 
-from models import FilledReq, MeasurementInfo, Env, MatchingReq
+from lab_wizard.wizard.backend.models import FilledReq, MeasurementInfo, Env, MatchingReq
 
 
 def _extract_instruments_from_template(env: Env, template_file: Path) -> List[FilledReq]:

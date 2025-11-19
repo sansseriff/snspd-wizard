@@ -14,15 +14,15 @@ from fastapi import HTTPException
 import argparse
 from typing import Any
 from uvicorn import Config, Server
-from models import Env, OutputReq
-from utils_runtime import has_gui_context, green, get_ipv4_addresses, is_ssh_session
+from lab_wizard.wizard.backend.models import Env, OutputReq
+from lab_wizard.wizard.backend.utils_runtime import has_gui_context, green, get_ipv4_addresses, is_ssh_session
 
 
-from get_measurements import get_measurements, reqs_from_measurement, discover_matching_instruments
+from lab_wizard.wizard.backend.get_measurements import get_measurements, reqs_from_measurement, discover_matching_instruments
 
 
 
-from location import WEB_DIR
+from lab_wizard.wizard.backend.location import WEB_DIR
 
 FRAMELESS = False
 
@@ -237,8 +237,10 @@ if __name__ == "__main__":
 
     # Start server first
     # user 1 worker for easier data sharing
+    # Use an import string so the child process can import the app without pickling it
+    app_import_str = "lab_wizard.wizard.backend.main:app"
     config = Config(
-        "main:app", host=server_ip, port=server_port, log_level=log_level, workers=1
+        app_import_str, host=server_ip, port=server_port, log_level=log_level, workers=1
     )
     instance = UvicornServer(config=config)
     instance.start()

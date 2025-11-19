@@ -4,6 +4,6 @@
         "*.py.tmpl": "python"
     },
     "python-envs.pythonProjects": [],
-    "python.defaultInterpreterPath": "${workspaceFolder}/lab_wizard/.venv/bin/python",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
 
 }

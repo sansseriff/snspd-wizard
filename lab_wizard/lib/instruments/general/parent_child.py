@@ -56,6 +56,7 @@ class ChildParams(Instrument, BaseModel, Params2Inst[I_co], Generic[I_co]):
     Generic over the concrete Child instrument type (I_co). This lets APIs
     accepting a ChildParams[I] return an I without ad-hoc overloads.
     """
+    enabled: bool = True
 
     @model_validator(mode="after")
     def validate_type_exists(self) -> Self:
@@ -91,6 +92,7 @@ class ParentParams(BaseModel, Params2Inst[PR_co], Generic[PR_co, R, P]):
     # Use Field to avoid shared mutable default
     children: dict[str, P] = Field(default_factory=dict)
     """
+    enabled: bool = True
 
     @property
     @abstractmethod
@@ -196,7 +198,7 @@ def assert_params_init_alignment(
     *,
     parent_cls: Type[Any],
     params_cls: Type[ParentParams[Any, Any, Any]],
-    exclude: Iterable[str] = ("children",),
+    exclude: Iterable[str] = ("children", "enabled"),
     allow_missing: bool = False,
     allow_extra: bool = False,
 ) -> None:

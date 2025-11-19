@@ -1,2 +1,6 @@
 dbay-backend/
 pyleco/
+
+ref/
+
+!ref/snspd_measure_old/

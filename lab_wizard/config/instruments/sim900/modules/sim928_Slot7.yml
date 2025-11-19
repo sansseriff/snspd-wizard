@@ -1,0 +1,4 @@
+type: sim928
+settling_time: 0.4
+enabled: false
+
