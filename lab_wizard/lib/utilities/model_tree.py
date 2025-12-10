@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Annotated, Literal
-from lib.instruments.dbay.dbay import DBayParams
-from lib.instruments.general.prologix_gpib import PrologixGPIBParams
+from lab_wizard.lib.instruments.dbay.dbay import DBayParams
+from lab_wizard.lib.instruments.general.prologix_gpib import PrologixGPIBParams
 
 
 class FileSaver(BaseModel):

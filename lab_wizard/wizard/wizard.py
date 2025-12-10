@@ -29,9 +29,9 @@ from abc import ABC, abstractmethod
 
 
 # Import the actual base classes from the instrument modules
-from lib.instruments.general.vsource import VSource
-from lib.instruments.general.vsense import VSense
-from lib.instruments.general.parent import Parent
+from lab_wizard.lib.instruments.general.vsource import VSource
+from lab_wizard.lib.instruments.general.vsense import VSense
+from lab_wizard.lib.instruments.general.parent import Parent
 
 
 @dataclass

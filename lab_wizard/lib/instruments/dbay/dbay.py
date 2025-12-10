@@ -1,8 +1,8 @@
-from typing import Any, Annotated, TypeVar, cast
+from typing import Any, Annotated, TypeVar, cast, Literal
 from pydantic import Field
 
-from lib.instruments.dbay.comm import Comm
-from lib.instruments.general.parent_child import (
+from lab_wizard.lib.instruments.dbay.comm import Comm
+from lab_wizard.lib.instruments.general.parent_child import (
     Parent,
     ParentParams,
     ParentFactory,
@@ -10,12 +10,11 @@ from lib.instruments.general.parent_child import (
     ChildParams,
     CanInstantiate,
 )
-from lib.instruments.dbay.modules.dac4d import Dac4DParams, Dac4D
-from lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
-from lib.instruments.dbay.modules.empty import EmptyParams, Empty
-from typing import Literal
-from lib.instruments.general.computer import ComputerDep
-from lib.instruments.general.comm import HttpChannelRequest
+from lab_wizard.lib.instruments.dbay.modules.dac4d import Dac4DParams, Dac4D
+from lab_wizard.lib.instruments.dbay.modules.dac16d import Dac16DParams, Dac16D
+from lab_wizard.lib.instruments.dbay.modules.empty import EmptyParams, Empty
+from lab_wizard.lib.instruments.general.computer import ComputerDep
+from lab_wizard.lib.instruments.general.comm import HttpChannelRequest
 
 
 # For now, restrict to Dac4D until other modules are migrated to the new generics.
@@ -76,7 +75,7 @@ class DBay(
     # Child interface
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.general.computer.Computer"
+        return "lab_wizard.lib.instruments.general.computer.Computer"
 
     @property
     def dep(self) -> Comm:

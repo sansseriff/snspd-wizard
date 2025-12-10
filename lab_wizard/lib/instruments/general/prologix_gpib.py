@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Annotated, TypeVar, cast, Any
 from pydantic import Field, model_validator
 
-from lib.instruments.sim900.sim900 import (
+from lab_wizard.lib.instruments.sim900.sim900 import (
     Sim900Params,
 )  # for typing
-from lib.instruments.general.parent_child import (
+from lab_wizard.lib.instruments.general.parent_child import (
     Parent,
     ParentParams,
     ParentFactory,
@@ -14,10 +14,10 @@ from lib.instruments.general.parent_child import (
     ChildParams,
     CanInstantiate,
 )
-from lib.instruments.general.computer import ComputerDep
-from lib.instruments.general.comm import SerialChannelRequest, build_serial_descriptor
+from lab_wizard.lib.instruments.general.computer import ComputerDep
+from lab_wizard.lib.instruments.general.comm import SerialChannelRequest, build_serial_descriptor
 
-from lib.instruments.general.serial import SerialDep, LocalSerialDep
+from lab_wizard.lib.instruments.general.serial import SerialDep, LocalSerialDep
 from typing import Literal
 
 # TypeVar for method-level inference

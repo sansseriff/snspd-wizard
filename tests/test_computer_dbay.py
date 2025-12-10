@@ -1,14 +1,9 @@
 import sys
-import pathlib
 import types
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from lib.instruments.general.computer import ComputerParams
-from lib.instruments.dbay.dbay import DBayParams
-from lib.instruments.dbay.modules.dac4d import Dac4DParams
+from lab_wizard.lib.instruments.general.computer import ComputerParams
+from lab_wizard.lib.instruments.dbay.dbay import DBayParams
+from lab_wizard.lib.instruments.dbay.modules.dac4d import Dac4DParams
 
 
 def fake_requests_module():
@@ -41,10 +36,10 @@ def fake_requests_module():
     return types.SimpleNamespace(get=get, put=put)
 
 
-def test_computer_dbay_child(monkeypatch):  # type: ignore[no-untyped-def]
+def test_computer_dbay_child(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     # Patch requests so DBay comm uses fake
-    monkeypatch.setitem(sys.modules, "requests", fake_requests_module())
-    import lib.instruments.dbay.comm as dbay_comm
+    monkeypatch.setitem(sys.modules, "requests", fake_requests_module())  # type: ignore[attr-defined]
+    import lab_wizard.lib.instruments.dbay.comm as dbay_comm
 
     dbay_comm.requests = sys.modules["requests"]
 

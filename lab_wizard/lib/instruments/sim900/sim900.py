@@ -10,11 +10,11 @@ Includes:
   sim921 (AC resistance bridge)
 """
 
-from typing import Annotated, Literal, cast, TypeVar
+from typing import Annotated, Literal, cast, TypeVar, Any
 from pydantic import Field
 
 
-from lib.instruments.general.parent_child import (
+from lab_wizard.lib.instruments.general.parent_child import (
     Parent,
     ParentParams,
     Child,
@@ -22,12 +22,11 @@ from lib.instruments.general.parent_child import (
     ChildParams,
 )
 
-from lib.instruments.sim900.modules.sim928 import Sim928Params
-from lib.instruments.sim900.modules.sim970 import Sim970Params
-from lib.instruments.sim900.modules.sim921 import Sim921Params
-from lib.instruments.general.serial import SerialDep
-from typing import Any
-from lib.instruments.sim900.deps import Sim900Dep
+from lab_wizard.lib.instruments.sim900.modules.sim928 import Sim928Params
+from lab_wizard.lib.instruments.sim900.modules.sim970 import Sim970Params
+from lab_wizard.lib.instruments.sim900.modules.sim921 import Sim921Params
+from lab_wizard.lib.instruments.general.serial import SerialDep
+from lab_wizard.lib.instruments.sim900.deps import Sim900Dep
 
 Sim900ChildParams = Annotated[
     Sim928Params | Sim970Params | Sim921Params, Field(discriminator="type")
@@ -61,9 +60,9 @@ class Sim900(Parent[Sim900Dep, Sim900ChildParams], Child[SerialDep, Any]):
 
     def __init__(self, dep: Sim900Dep, params: Sim900Params):
         # init params don't include keys. So, that means that for sim900 to be created,
-        # keys (in this case GPIB number) must be present in the dep that's supplied.
-        # so __init__ must accept its corresponding dep that it uses internally. Not the
-        # dep donated from the parent.
+        # keys (in this case GPIB number) must be present inside the dep that's supplied.
+        # so __init__ must accept its corresponding dep that it uses internally (Sim900Dep). Not the
+        # dep donated from the parent (SerialDep).
         self.params = params
         self._dep = dep
         self.children: dict[str, Child[Sim900Dep, Any]] = {}

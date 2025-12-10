@@ -2,17 +2,17 @@ from typing import Any, Literal, List
 
 from pydantic import BaseModel
 
-from lib.instruments.dbay.addons.vsense import ChSenseState
-from lib.instruments.dbay.addons.vsource import (
+from lab_wizard.lib.instruments.dbay.addons.vsense import ChSenseState
+from lab_wizard.lib.instruments.dbay.addons.vsource import (
     IVsourceAddon,
     VsourceChange,
     SharedVsourceChange,
     ChSourceState,
 )
-from lib.instruments.dbay.comm import Comm
-from lib.instruments.dbay.state import Core
-from lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
-from lib.instruments.general.vsource import VSource
+from lab_wizard.lib.instruments.dbay.comm import Comm
+from lab_wizard.lib.instruments.dbay.state import Core
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
+from lab_wizard.lib.instruments.general.vsource import VSource
 
 
 # ---------------------- Params & State Models ----------------------
@@ -106,7 +106,7 @@ class Dac16DParams(ChildParams["Dac16D"]):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.dbay.dbay.DBay"
+        return "lab_wizard.lib.instruments.dbay.dbay.DBay"
 
 
 class Dac16DState(BaseModel):

@@ -7,7 +7,7 @@ Minimal local-only implementation; remote mode scaffolding included.
 from typing import Any, Dict, Literal, TypeVar, cast, overload
 from pydantic import Field
 
-from lib.instruments.general.parent_child import (
+from lab_wizard.lib.instruments.general.parent_child import (
     Parent,
     ParentParams,
     ParentFactory,
@@ -15,16 +15,16 @@ from lib.instruments.general.parent_child import (
     ChildParams,
     Dependency,
 )
-from lib.instruments.general.comm import (
+from lab_wizard.lib.instruments.general.comm import (
     SerialChannelRequest,
     VisaChannelRequest,
     HttpChannelRequest,
     DummyChannelRequest,
 )
-from lib.instruments.general.serial import LocalSerialDep, RemoteSerialDep, SerialDep
-from lib.instruments.general.visa import LocalVisaDep, RemoteVisaDep, VisaDep
-from lib.instruments.general.http_dep import LocalHttpDep, RemoteHttpDep, HttpDep
-from lib.instruments.general.dummy_dep import LocalDummyDep, RemoteDummyDep, DummyDep
+from lab_wizard.lib.instruments.general.serial import LocalSerialDep, RemoteSerialDep, SerialDep
+from lab_wizard.lib.instruments.general.visa import LocalVisaDep, RemoteVisaDep, VisaDep
+from lab_wizard.lib.instruments.general.http_dep import LocalHttpDep, RemoteHttpDep, HttpDep
+from lab_wizard.lib.instruments.general.dummy_dep import LocalDummyDep, RemoteDummyDep, DummyDep
 
 # Type variables
 TChild = TypeVar("TChild", bound=Child[Any, Any])

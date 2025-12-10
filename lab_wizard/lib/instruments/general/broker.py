@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional, Any
 import base64
-from lib.utilities.codec import ensure_bytes
+from lab_wizard.lib.utilities.codec import ensure_bytes
 
 from .comm import (
     parse_descriptor,

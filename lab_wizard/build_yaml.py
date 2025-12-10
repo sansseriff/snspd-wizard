@@ -1,7 +1,8 @@
-from pydantic_yaml import to_yaml_file
+from pathlib import Path
 
+from pydantic_yaml import to_yaml_file  # type: ignore[import-untyped]
 
-from lib.utilities.model_tree import (
+from lab_wizard.lib.utilities.model_tree import (
     Device,
     Exp,
     FileSaver,
@@ -9,13 +10,13 @@ from lib.utilities.model_tree import (
     MplPlotter,
 )
 
-from lib.instruments.dbay.dbay import DBayParams
-from lib.instruments.dbay.modules.dac4d import Dac4DParams
+from lab_wizard.lib.instruments.dbay.dbay import DBayParams
+from lab_wizard.lib.instruments.dbay.modules.dac4d import Dac4DParams
 
-from lib.instruments.general.prologix_gpib import PrologixGPIBParams
-from lib.instruments.sim900.modules.sim928 import Sim928Params
-from lib.instruments.sim900.modules.sim970 import Sim970Params
-from lib.instruments.sim900.sim900 import Sim900Params
+from lab_wizard.lib.instruments.general.prologix_gpib import PrologixGPIBParams
+from lab_wizard.lib.instruments.sim900.modules.sim928 import Sim928Params
+from lab_wizard.lib.instruments.sim900.modules.sim970 import Sim970Params
+from lab_wizard.lib.instruments.sim900.sim900 import Sim900Params
 
 from ruamel.yaml import YAML
 
@@ -67,6 +68,52 @@ if __name__ == "__main__":
     my_writer.default_flow_style = True
     my_writer.sort_base_mapping_type_on_output = False  # type: ignore[attr-defined]
 
+    # Determine project and config locations
+    repo_root = Path(__file__).resolve().parent.parent
+    projects_dir = repo_root / "projects"
+    project_dir = projects_dir / "demo_measurement_test_conf"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1) Create project-specific YAML that captures the in-memory Exp tree
     exp = create_example_exp()
-    to_yaml_file("custom_setup.yaml", exp, custom_yaml_writer=my_writer)
-    print("Wrote example setup to custom_setup.yaml")
+    project_yaml = project_dir / "demo_measurement_test_conf.yaml"
+    to_yaml_file(project_yaml, exp, custom_yaml_writer=my_writer)
+    print(f"Wrote project-specific setup to {project_yaml}")
+
+    # 2) Create a small helper script in the project folder that can push this
+    #    project-specific instruments state into the global config tree.
+    apply_script = project_dir / "apply_to_config.py"
+    if not apply_script.exists():
+        apply_script.write_text(
+            """from pathlib import Path
+
+from pydantic_yaml import parse_yaml_file
+
+from lab_wizard.lib.utilities.model_tree import Exp
+from lab_wizard.lib.utilities.config_io import load_merge_save_instruments
+
+
+def main() -> None:
+    this_file = Path(__file__).resolve()
+    project_yaml = this_file.with_suffix(".yaml")
+
+    # Repo root is three levels up: <repo_root>/projects/<project_name>/
+    repo_root = this_file.parents[3]
+    config_dir = repo_root / "lab_wizard" / "config"
+
+    print(f\"Loading project-specific setup from: {project_yaml}\")
+    exp = parse_yaml_file(Exp, project_yaml)
+
+    # Push instruments subtree into the config/ instruments tree
+    instruments = exp.instruments
+    merged = load_merge_save_instruments(config_dir, instruments)
+    print(f\"Pushed {len(instruments)} instrument(s) into config; merged total: {len(merged)}\")
+
+
+if __name__ == \"__main__\":
+    main()
+"""
+        )
+        print(f"Created helper script to push config: {apply_script}")
+    else:
+        print(f"Helper script already exists: {apply_script}")

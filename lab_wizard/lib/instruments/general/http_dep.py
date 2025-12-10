@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
-from lib.utilities.codec import coerce_bytes
+from lab_wizard.lib.utilities.codec import coerce_bytes
 
 try:  # pragma: no cover
     import requests  # type: ignore

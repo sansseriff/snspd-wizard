@@ -1,9 +1,8 @@
-from lib.instruments.general.vsource import VSource
-from typing import Literal
-from lib.instruments.general.parent_child import Child, ChildParams
-from typing import Any
-from lib.instruments.sim900.comm import Sim900ChildDep
-from lib.instruments.sim900.deps import Sim900Dep
+from lab_wizard.lib.instruments.general.vsource import VSource
+from typing import Literal, Any
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams
+from lab_wizard.lib.instruments.sim900.comm import Sim900ChildDep
+from lab_wizard.lib.instruments.sim900.deps import Sim900Dep
 
 
 class Sim928Params(ChildParams["Sim928"]):
@@ -27,7 +26,7 @@ class Sim928(Child[Sim900Dep, Sim928Params], VSource):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.sim900.sim900.Sim900"
+        return "lab_wizard.lib.instruments.sim900.sim900.Sim900"
 
     @classmethod
     def from_params_with_dep(

@@ -1,18 +1,11 @@
 import types
 import sys
-import pathlib
 import pytest
 
-
-# Ensure project root (containing 'lib') is on path when tests run BEFORE imports
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from lib.instruments.general.prologix_gpib import PrologixGPIBParams
-from lib.instruments.sim900.sim900 import Sim900Params
-from lib.instruments.sim900.modules.sim928 import Sim928Params
-from lib.instruments.sim900.modules.sim970 import Sim970Params
+from lab_wizard.lib.instruments.general.prologix_gpib import PrologixGPIBParams
+from lab_wizard.lib.instruments.sim900.sim900 import Sim900Params
+from lab_wizard.lib.instruments.sim900.modules.sim928 import Sim928Params
+from lab_wizard.lib.instruments.sim900.modules.sim970 import Sim970Params
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +31,7 @@ def patch_serial(monkeypatch: pytest.MonkeyPatch):
     # Patch both the imported 'serial' module and the already imported symbol inside our package
     fake_module = types.SimpleNamespace(Serial=FakeSerial)
     monkeypatch.setitem(sys.modules, "serial", fake_module)
-    import lib.instruments.general.serial as serial_mod
+    import lab_wizard.lib.instruments.general.serial as serial_mod
 
     serial_mod.serial = fake_module
 

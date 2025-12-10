@@ -1,20 +1,15 @@
 import types
 import sys
-import pathlib
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from lib.instruments.general.computer import ComputerParams
-from lib.instruments.general.prologix_gpib import PrologixGPIBParams
-from lib.instruments.sim900.sim900 import Sim900Params
-from lib.instruments.sim900.modules.sim928 import Sim928Params
+from lab_wizard.lib.instruments.general.computer import ComputerParams
+from lab_wizard.lib.instruments.general.prologix_gpib import PrologixGPIBParams
+from lab_wizard.lib.instruments.sim900.sim900 import Sim900Params
+from lab_wizard.lib.instruments.sim900.modules.sim928 import Sim928Params
 
 
 def fake_serial_module():
     class FakeSerial:
-        def __init__(self, *_, **__):
+        def __init__(self, *args: object, **kwargs: object) -> None:
             self.is_open = True
 
         def close(self):
@@ -38,12 +33,12 @@ def fake_serial_module():
     return types.SimpleNamespace(Serial=FakeSerial)
 
 
-def test_computer_prologix_chain(monkeypatch):  # type: ignore[no-untyped-def]
+def test_computer_prologix_chain(monkeypatch: object) -> None:
     # patch serial
-    monkeypatch.setitem(sys.modules, "serial", fake_serial_module())
-    import lib.instruments.general.serial as serial_mod
+    monkeypatch.setitem(sys.modules, "serial", fake_serial_module())  # type: ignore[attr-defined]
+    import lab_wizard.lib.instruments.general.serial as serial_mod
 
-    serial_mod.serial = sys.modules["serial"]
+    serial_mod.serial = sys.modules["serial"]  # type: ignore[attr-defined]
 
     comp = ComputerParams().create_inst()
     prologix = comp.add_child(PrologixGPIBParams(baudrate=19200), "/dev/ttyUSB_FAKE")

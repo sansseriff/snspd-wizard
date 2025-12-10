@@ -12,7 +12,7 @@ This minimal launcher runs a raw daemon loop; CTRL+C to exit.
 """
 import argparse
 
-from lib.instruments.general.broker import ChannelBroker
+from lab_wizard.lib.instruments.general.broker import ChannelBroker
 
 try:
     import Pyro5.api as pyro  # type: ignore

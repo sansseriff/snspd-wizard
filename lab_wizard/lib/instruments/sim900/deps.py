@@ -1,5 +1,5 @@
-from lib.instruments.general.parent_child import Dependency
-from lib.instruments.general.serial import SerialDep
+from lab_wizard.lib.instruments.general.parent_child import Dependency
+from lab_wizard.lib.instruments.general.serial import SerialDep
 
 
 class Sim900Dep(Dependency):

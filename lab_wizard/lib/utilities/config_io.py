@@ -4,26 +4,28 @@ from __future__ import annotations
 Config I/O utilities for loading, merging, and saving the multi-file instruments config
 into a single in-memory pydantic Params tree rooted at instruments (no ComputerParams).
 
-Directory layout expected under a given config_dir:
+Directory layout expected under a given config_dir (illustrative):
 
 config/
   instruments/
-    prologix_gpib.yml
+    prologix_gpib_key_<slug(port)>.yml
     dbay/
-      dbay.yml
+      dbay_key_<slug(server_address:port)>.yml
       modules/
-        dac4D.yml
-        dac16D.yml
+        dac4D_key_<slot>.yml
+        dac16D_key_<slot>.yml
     sim900/
-      sim900.yml
+      sim900_key_<gpib_addr>.yml        # SIM900 mainframes, as children of Prologix
       modules/
-        sim928.yml
-        sim970.yml
-    keysight_whatever.yml
+        sim928_key_<slot>.yml
+        sim970_key_<slot>.yml
+        sim921_key_<slot>.yml
+    keysight_whatever_key_<something>.yml
 
 Notes:
-- Parents express children as a list of refs with fields: kind, ref, key
-- Leaf Params may carry an 'attribute' string to serve as a user-facing identifier
+- Parents express children as a mapping from string keys (e.g. slot index, GPIB
+  address) to refs with fields: kind, ref.
+- Leaf Params may carry an 'attribute' string to serve as a user-facing identifier.
 
 Provided functions:
 - load_instruments(config_dir) -> dict[str, InstrumentParams]
@@ -35,24 +37,28 @@ Provided functions:
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Type, List, cast
+from typing import Any,Dict,Optional,Tuple,Type,List,cast
 
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 
 # Import Params classes
-from lib.instruments.general.prologix_gpib import PrologixGPIBParams
-from lib.instruments.sim900.sim900 import Sim900Params
-from lib.instruments.sim900.modules.sim928 import Sim928Params
-from lib.instruments.sim900.modules.sim970 import Sim970Params
-from lib.instruments.sim900.modules.sim921 import Sim921Params
-from lib.instruments.dbay.dbay import DBayParams
-from lib.instruments.dbay.modules.dac4d import Dac4DParams
-from lib.instruments.dbay.modules.dac16d import Dac16DParams
+from lab_wizard.lib.instruments.general.prologix_gpib import PrologixGPIBParams
+from lab_wizard.lib.instruments.sim900.sim900 import Sim900Params
+from lab_wizard.lib.instruments.sim900.modules.sim928 import Sim928Params
+from lab_wizard.lib.instruments.sim900.modules.sim970 import Sim970Params
+from lab_wizard.lib.instruments.sim900.modules.sim921 import Sim921Params
+from lab_wizard.lib.instruments.dbay.dbay import DBayParams
+from lab_wizard.lib.instruments.dbay.modules.dac4d import Dac4DParams
+from lab_wizard.lib.instruments.dbay.modules.dac16d import Dac16DParams
 
 
 # ---------------------------- YAML helpers ----------------------------
 
-_yaml: Any = YAML(typ="safe")
+# Use round-trip mode so we can preserve and add helpful comments in the
+# on-disk config tree, while still converting to plain dicts before
+# instantiating Pydantic models.
+_yaml: Any = YAML(typ="rt")
 _yaml.default_flow_style = False
 
 
@@ -64,8 +70,68 @@ def _read_yaml(path: Path) -> Dict[str, Any]:
 
 def _write_yaml(path: Path, data: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Convert plain dicts into a CommentedMap so we can attach comments such
+    # as "managed by wizard" to specific keys (e.g. child refs).
+    if not isinstance(data, CommentedMap):
+        cm = CommentedMap()
+        for k, v in data.items():
+            cm[k] = v
+        data_to_dump: Any = cm
+    else:
+        data_to_dump = data
     with path.open("w", encoding="utf-8") as f:
-        _yaml.dump(data, f)
+        _yaml.dump(data_to_dump, f)
+
+
+# ---------------------------- Key slug helpers ----------------------------
+
+SLUG_ESCAPE_PREFIX = "~"
+
+
+def key_to_slug(key: str) -> str:
+    """Convert an arbitrary key string into a filesystem-safe slug.
+
+    - Alphanumeric characters and '-','_' are left as-is.
+    - All other characters are encoded as '~HH' where HH is the hex code of the
+      character's ordinal. This is reversible via slug_to_key.
+    """
+
+    pieces: List[str] = []
+    for ch in key:
+        if ch.isalnum() or ch in "-_":
+            pieces.append(ch)
+        else:
+            pieces.append(f"{SLUG_ESCAPE_PREFIX}{ord(ch):02X}")
+    return "".join(pieces)
+
+
+def slug_to_key(slug: str) -> str:
+    """Inverse of key_to_slug.
+
+    Not currently used by the loader (we keep original keys in YAML), but
+    available for tools that need to map filenames back to dictionary keys.
+    """
+
+    out: List[str] = []
+    i = 0
+    n = len(slug)
+    while i < n:
+        ch = slug[i]
+        if ch == SLUG_ESCAPE_PREFIX and i + 2 < n:
+            hex_part = slug[i + 1 : i + 3]
+            try:
+                code = int(hex_part, 16)
+            except ValueError:
+                # Not a valid escape, keep literal
+                out.append(ch)
+                i += 1
+                continue
+            out.append(chr(code))
+            i += 3
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
 
 
 # ---------------------------- Type registry ----------------------------
@@ -105,8 +171,19 @@ def _resolve_child_file(base_dir: Path, ref: str) -> Path:
     return (base_dir / "instruments" / ref).resolve()
 
 
-def _load_node(base_dir: Path, node_path: Path) -> Tuple[Any, Dict[str, Any]]:
-    """Load a node YAML file and return (Params instance, raw dict). Does not load children yet."""
+def _load_node(
+    base_dir: Path,
+    node_path: Path,
+    visited_paths: Optional[set[Path]] = None,
+) -> Tuple[Any, Dict[str, Any]]:
+    """Load a node YAML file and return (Params instance, raw dict).
+
+    Does not load children yet. When visited_paths is provided, the resolved
+    node_path is added to that set so callers can reconstruct the set of all
+    YAML files that participate in the logical instruments tree.
+    """
+    if visited_paths is not None:
+        visited_paths.add(node_path.resolve())
     data = _read_yaml(node_path)
     type_str = data.get("type")
     if not isinstance(type_str, str):
@@ -117,38 +194,48 @@ def _load_node(base_dir: Path, node_path: Path) -> Tuple[Any, Dict[str, Any]]:
     return params, data
 
 
-def _attach_children(base_dir: Path, parent_params: Any, raw_dict: Dict[str, Any]) -> None:
-    children: List[Dict[str, Any]] = cast(List[Dict[str, Any]], raw_dict.get("children") or [])
-    if not children:
+def _attach_children(
+    base_dir: Path,
+    parent_params: Any,
+    raw_dict: Dict[str, Any],
+    visited_paths: Optional[set[Path]] = None,
+) -> None:
+    # Children are represented in YAML as a mapping: key -> {kind, ref}
+    children_map: Dict[str, Dict[str, Any]] = cast(
+        Dict[str, Dict[str, Any]], raw_dict.get("children") or {}
+    )
+    if not children_map:
         return
-    for entry in children:
+    for key, entry in list(children_map.items()):
         kind = cast(Optional[str], entry.get("kind"))
         ref = cast(Optional[str], entry.get("ref"))
-        key = cast(Optional[str], entry.get("key"))
-        if not (isinstance(kind, str) and isinstance(ref, str) and isinstance(key, str)):
-            raise ValueError("child entry requires string fields: kind, ref, key")
+        if not (isinstance(kind, str) and isinstance(ref, str)):
+            raise ValueError("child entry requires string fields: kind, ref, and mapping key")
         child_path = _resolve_child_file(base_dir, ref)
-        child_params, child_raw = _load_node(base_dir, child_path)
+        child_params, child_raw = _load_node(base_dir, child_path, visited_paths)
 
         if getattr(child_params, "enabled", True) is False:
             continue
 
         # recursively attach grandchildren
-        _attach_children(base_dir, child_params, child_raw)
+        _attach_children(base_dir, child_params, child_raw, visited_paths)
         # add to parent
         if not hasattr(parent_params, "children"):
             raise ValueError(f"Parent type {type(parent_params).__name__} has no children field")
         parent_params.children[key] = child_params  # type: ignore[attr-defined]
 
 
-def load_instruments(config_dir: str | Path) -> Dict[str, Any]:
+def load_instruments(
+    config_dir: str | Path,
+    visited_paths: Optional[set[Path]] = None,
+) -> Dict[str, Any]:
     """Load the instruments config into a top-level instruments dict mapping keys to Params.
 
     Heuristic: Any top-level instrument YAML directly under instruments/ is considered a top-level entry.
     Its key is inferred as:
       - prologix_gpib: params.port
       - dbay: f"{server_address}:{port}" (port optional if default)
-      - sim900: key must be provided by a parent (not typical at top-level)
+      - sim900: loaded only as a child of PrologixGPIB (not a top-level instrument)
       - other leaf instruments: use an attribute or fallback to type name
     """
     base_dir = Path(config_dir)
@@ -160,12 +247,16 @@ def load_instruments(config_dir: str | Path) -> Dict[str, Any]:
 
     # Top-level files (exclude known folders)
     for p in sorted(inst_dir.glob("*.yml")):
-        params, raw = _load_node(base_dir, p)
+        params, raw = _load_node(base_dir, p, visited_paths)
+        print()
+        print("XXXXXXXX params in load_instruments", params)
+        print("YYYY raw in load_instruments", raw)
+        print()
 
         if getattr(params, "enabled", True) is False:
             continue
 
-        _attach_children(base_dir, params, raw)
+        _attach_children(base_dir, params, raw, visited_paths)
         type_str = str(raw.get("type") or "")
         if type_str == "prologix_gpib":
             key = getattr(params, "port", None) or "<unknown>"
@@ -178,16 +269,21 @@ def load_instruments(config_dir: str | Path) -> Dict[str, Any]:
             key = type_str
         instruments[key] = params
 
-    # Known parent folders
-    for folder, filename in [("dbay", "dbay.yml"), ("sim900", "sim900.yml")]:
-        folder_path = inst_dir / folder / filename
-        if folder_path.exists():
-            params, raw = _load_node(base_dir, folder_path)
+    # Known parent folders (DBay). Rather than relying on hard-coded
+    # filenames like "dbay.yml", scan all YAML files under
+    # these folders and use their internal "type" field to decide how to key
+    # them in the top-level instruments dict.
+    for folder in ("dbay",):
+        folder_dir = inst_dir / folder
+        if not folder_dir.exists():
+            continue
+        for p in sorted(folder_dir.glob("*.yml")):
+            params, raw = _load_node(base_dir, p, visited_paths)
 
             if getattr(params, "enabled", True) is False:
                 continue
 
-            _attach_children(base_dir, params, raw)
+            _attach_children(base_dir, params, raw, visited_paths)
             type_name = str(raw.get("type") or "")
             if type_name == "dbay":
                 host = getattr(params, "server_address", None) or "localhost"
@@ -201,6 +297,20 @@ def load_instruments(config_dir: str | Path) -> Dict[str, Any]:
             instruments[key] = params
 
     return instruments
+
+
+def load_instruments_with_paths(
+    config_dir: str | Path,
+) -> Tuple[Dict[str, Any], set[Path]]:
+    """Load instruments and also return the set of YAML files that participated.
+
+    This is useful for normalization / cleanup tooling that wants to know which
+    files are reachable from the logical instruments tree.
+    """
+
+    visited: set[Path] = set()
+    instruments = load_instruments(config_dir, visited_paths=visited)
+    return instruments, visited
 
 
 # ---------------------------- Merging ----------------------------
@@ -252,28 +362,23 @@ def _choose_node_path(inst_dir: Path, type_str: str, parent_type: Optional[str],
     if attribute:
         base_name = f"{type_str}_{attribute}.yml"
     elif key:
-        # For modules in a rack/mainframe (known via info.folder), append _SlotX for clarity
-        if sub and ("sim900" in sub or "dbay" in sub) and key.isdigit():
-            base_name = f"{type_str}_Slot{key}.yml"
-        else:
-            base_name = f"{type_str}_{key}.yml"
+        # General rule: encode dictionary key into a filesystem-safe slug and
+        # include it in the filename so the config tree looks dictionary-like.
+        slug = key_to_slug(str(key))
+        base_name = f"{type_str}_key_{slug}.yml"
     else:
         base_name = f"{type_str}.yml"
     if sub:
+        # Parent/child types with a dedicated subfolder (e.g. dbay, sim900 and
+        # their modules) live under that folder.
         return inst_dir / sub / base_name
     else:
-        # top-level instrument
-        # Special-case: standard filenames for known parents
-        if type_str == "prologix_gpib":
-            return inst_dir / "prologix_gpib.yml"
-        if type_str == "dbay":
-            return inst_dir / "dbay" / "dbay.yml"
-        if type_str == "sim900":
-            return inst_dir / "sim900" / "sim900.yml"
+        # Top-level instruments live directly under instruments/ using the
+        # same {type}_key_{slug(key)}.yml convention (when a key is present).
         return inst_dir / base_name
 
 
-def _dump_parent_to_dict(params: Any, child_refs: List[Dict[str, str]]) -> Dict[str, Any]:
+def _dump_parent_to_dict(params: Any, child_refs: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
     data: Dict[str, Any] = params.model_dump()
     # Persist children as refs list, not embedded dict
     data.pop("children", None)
@@ -289,21 +394,45 @@ def _save_node_recursive(inst_dir: Path, params: Any, parent_type: Optional[str]
     attribute: Optional[str] = getattr(params, "attribute", None)
 
     # First save children to obtain their file refs
-    child_refs: List[Dict[str, str]] = []
+    # Children are represented as a mapping from string key to {kind, ref}.
+    child_refs: Dict[str, Dict[str, str]] = {}
     for key, child in (getattr(params, "children", {}) or {}).items():
         c_type = getattr(child, "type")
         c_path, _ = _save_node_recursive(inst_dir, child, type_str, key)
         ref = c_path.relative_to(inst_dir).as_posix()
-        # Normalize into ref under instruments/
-        if not ref.startswith("sim900/") and not ref.startswith("dbay/"):
-            # keep as is for top-level leafs
-            pass
-        child_refs.append({"kind": str(c_type), "ref": ref, "key": str(key)})
+        # NOTE: 'ref' is code-owned: humans should not edit it. It always
+        # reflects the canonical path of the child under config/instruments.
+        child_refs[str(key)] = {"kind": str(c_type), "ref": ref}
 
     # Now write this node
     target = _choose_node_path(inst_dir, type_str, parent_type, here_key, attribute)
     data = _dump_parent_to_dict(params, child_refs)
-    _write_yaml(target, data)
+
+    # Attach a helpful comment to the "ref" field if we are in round-trip mode.
+    # We construct a CommentedMap in _write_yaml, but here we can hint by using
+    # CommentedMap directly so we can control comments for children.
+    cm = CommentedMap()
+    for k, v in data.items():
+        cm[k] = v
+    # Add comments on each child's ref entry to warn humans not to edit it.
+    children_raw: Any = cm.get("children", None)  # type: ignore[call-arg]
+    if isinstance(children_raw, dict):
+        for yaml_key, entry in cast(Dict[Any, Any], children_raw).items():
+            if not isinstance(entry, CommentedMap) and isinstance(entry, dict):
+                tmp_cm: CommentedMap = CommentedMap()
+                for ck, cv in cast(dict[Any, Any], entry).items():
+                    tmp_cm[ck] = cv
+                cast(Dict[Any, Any], children_raw)[yaml_key] = tmp_cm
+                entry = tmp_cm
+            if isinstance(entry, CommentedMap):
+                # Add a warning comment around the ref field to signal that it
+                # is owned by the wizard and will be updated automatically.
+                entry.yaml_set_comment_before_after_key(  # type: ignore[no-untyped-call]
+                    "ref",
+                    before=" DO NOT EDIT: managed by wizard; path may be renamed automatically.",
+                )
+
+    _write_yaml(target, cm)
     return target, data
 
 
@@ -347,3 +476,50 @@ def load_merge_save_instruments(config_dir: str | Path, subset: Dict[str, Any]) 
     return merged
 
 
+# ---------------------------- Normalization ----------------------------
+
+def _iter_instrument_yaml_files(config_dir: Path) -> List[Path]:
+    """Return a list of all YAML files under config/instruments.
+
+    Used by normalization tooling to detect orphaned files.
+    """
+
+    inst_dir = (config_dir / "instruments").resolve()
+    if not inst_dir.exists():
+        return []
+    return sorted(inst_dir.rglob("*.yml"))
+
+
+def normalize_instruments(config_dir: str | Path) -> Dict[str, Any]:
+    """Normalize the instruments config tree.
+
+    Operations:
+    - Load the current instruments tree.
+    - Re-save using canonical filenames (type + key slug) and auto-managed refs.
+    - Remove any orphaned YAML files in config/instruments that are no longer
+      referenced by the current tree (best-effort).
+    """
+
+    base_dir = Path(config_dir)
+
+    # Step 1: Load and immediately re-save; filenames and refs are canonicalized
+    # by _choose_node_path and _save_node_recursive.
+    instruments = load_instruments(config_dir)
+    save_instruments_to_config(instruments, config_dir)
+
+    # Step 2: Re-load and compute the closure of all YAML files reachable from
+    # the logical instruments tree (top-level + children via refs).
+    _, reachable_paths = load_instruments_with_paths(config_dir)
+
+    # Step 3: Any YAML file under instruments/ that is not reachable is treated
+    # as an orphan (e.g. leftovers from type/key renames) and can be removed.
+    all_files = set(_iter_instrument_yaml_files(base_dir))
+    orphans = all_files - reachable_paths
+    for orphan in orphans:
+        try:
+            orphan.unlink()
+        except OSError:
+            # Best-effort cleanup; ignore failures (permissions, races, etc.).
+            pass
+
+    return instruments

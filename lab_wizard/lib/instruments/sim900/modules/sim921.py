@@ -1,7 +1,7 @@
 from typing import Literal, Any
-from lib.instruments.general.parent_child import Child, ChildParams
-from lib.instruments.sim900.comm import Sim900ChildDep
-from lib.instruments.sim900.deps import Sim900Dep
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams
+from lab_wizard.lib.instruments.sim900.comm import Sim900ChildDep
+from lab_wizard.lib.instruments.sim900.deps import Sim900Dep
 
 
 class Sim921Params(ChildParams["Sim921"]):
@@ -27,7 +27,7 @@ class Sim921(Child[Sim900Dep, Sim921Params]):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.sim900.sim900.Sim900"
+        return "lab_wizard.lib.instruments.sim900.sim900.Sim900"
 
     @classmethod
     def from_params_with_dep(
@@ -54,7 +54,7 @@ class Sim921(Child[Sim900Dep, Sim921Params]):
 
     @property
     def mainframe_class(self) -> str:
-        return "lib.instruments.sim900.sim900.Sim900"
+        return "lab_wizard.lib.instruments.sim900.sim900.Sim900"
 
     def getResistance(self) -> float:
         """

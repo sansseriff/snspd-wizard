@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Any
 
-from lib.instruments.general.parent_child import Dependency
-from lib.instruments.general.comm import LocalSerialBackend
-from lib.utilities.codec import ensure_bytes, coerce_bytes
+from lab_wizard.lib.instruments.general.parent_child import Dependency
+from lab_wizard.lib.instruments.general.comm import LocalSerialBackend
+from lab_wizard.lib.utilities.codec import ensure_bytes, coerce_bytes
 
 
 class SerialDep(Dependency, ABC):

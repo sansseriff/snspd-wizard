@@ -13,8 +13,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
-# from lib.utilities.data_handler import DataHandler, MeasurementMetadata
-from lib.utilities.plotter import RealTimePlotter
+from lab_wizard.lib.utilities.plotter import RealTimePlotter
 from lab_wizard.lib.instruments.general.vsource import VSource
 from lab_wizard.lib.instruments.general.vsense import VSense
 

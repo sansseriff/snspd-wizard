@@ -1,10 +1,9 @@
-from lib.instruments.dbay.comm import Comm
-from lib.instruments.dbay.addons.vsource import VsourceChange, ChSourceState
-from lib.instruments.dbay.state import Core
+from lab_wizard.lib.instruments.dbay.comm import Comm
+from lab_wizard.lib.instruments.dbay.addons.vsource import VsourceChange, ChSourceState, IVsourceAddon
+from lab_wizard.lib.instruments.dbay.state import Core
 from typing import Literal
-from lib.instruments.dbay.addons.vsource import IVsourceAddon
-from lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
-from lib.instruments.general.vsource import VSource
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams, ChannelProvider
+from lab_wizard.lib.instruments.general.vsource import VSource
 from pydantic import BaseModel
 from typing import Any, TypeVar
 
@@ -110,7 +109,7 @@ class Dac4DParams(ChildParams["Dac4D"]):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.dbay.dbay.DBay"
+        return "lab_wizard.lib.instruments.dbay.dbay.DBay"
 
 
 class Dac4DState(BaseModel):
@@ -123,7 +122,7 @@ class Dac4DState(BaseModel):
 TChild = TypeVar("TChild", bound=Child[Comm, Any])
 
 
-class Dac4D(Child[Comm, Dac4DParams], ChannelChild[_Dac4DChannel]):
+class Dac4D(Child[Comm, Dac4DParams], ChannelProvider[_Dac4DChannel]):
     def __init__(self, data: dict[str, Any], comm: Comm):
         self.comm = comm
         self.data = Dac4DState(**data)

@@ -8,7 +8,7 @@ reducing code duplication across instrument modules.
 from typing import TypeVar, cast, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from lib.instruments.general.parent_child import Parent, Child, ChildParams
+    from lab_wizard.lib.instruments.general.parent_child import Parent, Child, ChildParams
 
 TChild = TypeVar("TChild", bound="Child[Any, Any]")
 

@@ -9,7 +9,7 @@ try:  # pragma: no cover
 except Exception:  # pragma: no cover
     pyvisa = None  # type: ignore
 
-from lib.utilities.codec import coerce_str, coerce_bytes
+from lab_wizard.lib.utilities.codec import coerce_str, coerce_bytes
 
 
 class VisaDep(ABC):

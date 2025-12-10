@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Any
 
-from lib.instruments.general.comm import DummyBackend
-from lib.utilities.codec import coerce_bytes, ensure_bytes
+from lab_wizard.lib.instruments.general.comm import DummyBackend
+from lab_wizard.lib.utilities.codec import coerce_bytes, ensure_bytes
 
 
 class DummyDep(ABC):

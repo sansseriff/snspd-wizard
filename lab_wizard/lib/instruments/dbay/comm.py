@@ -1,6 +1,6 @@
 import requests
 from typing import Any
-from lib.instruments.general.parent_child import Dependency
+from lab_wizard.lib.instruments.general.parent_child import Dependency
 
 
 class Comm(Dependency):

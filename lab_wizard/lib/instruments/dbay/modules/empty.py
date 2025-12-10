@@ -1,8 +1,8 @@
 from typing import Literal, Any
 
-from lib.instruments.dbay.state import Core
-from lib.instruments.general.parent_child import Child, ChildParams
-from lib.instruments.dbay.comm import Comm
+from lab_wizard.lib.instruments.dbay.state import Core
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams
+from lab_wizard.lib.instruments.dbay.comm import Comm
 
 
 class EmptyParams(ChildParams["Empty"]):
@@ -31,7 +31,7 @@ class Empty(Child[Comm, EmptyParams]):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.dbay.dbay.DBay"
+        return "lab_wizard.lib.instruments.dbay.dbay.DBay"
 
     @classmethod
     def from_params_with_dep(

@@ -1,7 +1,7 @@
 import os
 import sys
-from lib.instruments.general.computer import ComputerParams
-from lib.instruments.dummy_volt import DummyVoltParams
+from lab_wizard.lib.instruments.general.computer import ComputerParams
+from lab_wizard.lib.instruments.dummy_volt import DummyVoltParams
 
 
 def main():

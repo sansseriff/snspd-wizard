@@ -1,4 +1,4 @@
-from lib.instruments.general.parent_child import ChannelChild
+from lab_wizard.lib.instruments.general.parent_child import ChannelChild
 
 # Simple structural test for the ChannelChild mixin. Avoids real hardware deps.
 

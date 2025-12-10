@@ -1,24 +1,10 @@
-import sys
 import pathlib
-from typing import Any
-import pytest
 
-# Adjust path to include lab_wizard directory where 'lib' package resides
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-LAB_WIZARD_DIR = ROOT / "lab_wizard"
-if str(LAB_WIZARD_DIR) not in sys.path:
-    sys.path.insert(0, str(LAB_WIZARD_DIR))
-
-from lib.utilities.config_io import (
+from lab_wizard.lib.utilities.config_io import (
     load_instruments,
-    merge_instruments,
     save_instruments_to_config,
 )
-from lib.instruments.general.prologix_gpib import PrologixGPIBParams
-from lib.instruments.sim900.sim900 import Sim900Params
-from lib.instruments.sim900.modules.sim928 import Sim928Params
-from lib.instruments.sim900.modules.sim970 import Sim970Params
-from lib.instruments.dbay.dbay import DBayParams
+from lab_wizard.lib.instruments.dbay.dbay import DBayParams
 
 
 def _write(p: pathlib.Path, data: str) -> None:

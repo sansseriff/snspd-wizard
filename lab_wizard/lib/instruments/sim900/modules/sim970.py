@@ -1,8 +1,8 @@
 from __future__ import annotations
-from lib.instruments.general.vsense import VSense
-from lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
-from lib.instruments.sim900.comm import Sim900ChildDep
-from lib.instruments.sim900.deps import Sim900Dep
+from lab_wizard.lib.instruments.general.vsense import VSense
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
+from lab_wizard.lib.instruments.sim900.comm import Sim900ChildDep
+from lab_wizard.lib.instruments.sim900.deps import Sim900Dep
 import time
 import numpy as np
 from typing import Literal, Any, cast, TypeVar
@@ -34,7 +34,7 @@ class Sim970Params(ChildParams["Sim970"]):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.sim900.sim900.Sim900"
+        return "lab_wizard.lib.instruments.sim900.sim900.Sim900"
 
 
 class Sim970Channel(VSense):
@@ -103,7 +103,7 @@ class Sim970(Child[Sim900Dep, Sim970Params], ChannelChild[Sim970Channel]):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.sim900.sim900.Sim900"
+        return "lab_wizard.lib.instruments.sim900.sim900.Sim900"
 
     @classmethod
     def from_params_with_dep(

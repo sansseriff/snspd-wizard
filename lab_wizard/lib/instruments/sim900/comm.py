@@ -1,8 +1,8 @@
 from typing import Any
 import time
 
-from lib.instruments.general.gpib import GPIBComm
-from lib.instruments.general.serial import SerialDep
+from lab_wizard.lib.instruments.general.gpib import GPIBComm
+from lab_wizard.lib.instruments.general.serial import SerialDep
 
 
 class Sim900ChildDep:

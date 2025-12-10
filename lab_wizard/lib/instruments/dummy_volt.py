@@ -8,10 +8,10 @@ remote Pyro broker transparently.
 """
 from typing import Literal, Any, cast
 from pydantic import BaseModel
-from lib.instruments.general.parent_child import Child, ChildParams
-from lib.instruments.general.computer import ComputerDep
-from lib.instruments.general.comm import DummyChannelRequest
-from lib.instruments.general.dummy_dep import DummyDep
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams
+from lab_wizard.lib.instruments.general.computer import ComputerDep
+from lab_wizard.lib.instruments.general.comm import DummyChannelRequest
+from lab_wizard.lib.instruments.general.dummy_dep import DummyDep
 
 
 class DummyVoltParams(ChildParams["DummyVolt"]):
@@ -25,7 +25,7 @@ class DummyVoltParams(ChildParams["DummyVolt"]):
 
     @property
     def parent_class(self) -> str:
-        return "lib.instruments.general.computer.Computer"
+        return "lab_wizard.lib.instruments.general.computer.Computer"
 
 
 class DummyVolt(Child[ComputerDep, DummyVoltParams]):
@@ -50,7 +50,7 @@ class DummyVolt(Child[ComputerDep, DummyVoltParams]):
         return cls(dep, params, parent_dep)
     
     def parent_class(self) -> str:
-        return "lib.instruments.general.computer.Computer"
+        return "lab_wizard.lib.instruments.general.computer.Computer"
 
     @property
     def dep(self) -> ComputerDep:  # type: ignore[override]

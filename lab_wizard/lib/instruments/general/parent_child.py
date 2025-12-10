@@ -269,7 +269,7 @@ class Child(Instrument, ABC, Generic[R, P_child]):
 ChanT = TypeVar("ChanT")
 
 
-class ChannelChild(ABC, Generic[ChanT]):
+class ChannelProvider(ABC, Generic[ChanT]):
     """Mixin for any instrument that internally manages a fixed collection of channel objects.
 
     Provides a small convenience API and an abstract contract that ``channels`` exists.

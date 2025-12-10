@@ -1,4 +1,4 @@
-from lib.instruments.general.serial import SerialDep
+from lab_wizard.lib.instruments.general.serial import SerialDep
 import time
 
 

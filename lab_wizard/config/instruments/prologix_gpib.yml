@@ -1,8 +1,0 @@
-type: prologix_gpib
-port: /dev/ttyUSB_FAKE
-baudrate: 115200
-timeout: 1
-children:
-  - kind: sim900
-    ref: sim900/sim900.yml
-    key: "3"
