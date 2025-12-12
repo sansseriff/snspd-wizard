@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 try:  # pragma: no cover
@@ -9,7 +9,21 @@ try:  # pragma: no cover
 except Exception:  # pragma: no cover
     pyvisa = None  # type: ignore
 
-from lab_wizard.lib.utilities.codec import coerce_str, coerce_bytes
+
+def _coerce_str(payload: Any) -> str:
+    """Normalize payload to string."""
+    if isinstance(payload, bytes):
+        return payload.decode("utf-8", errors="replace")
+    return str(payload)
+
+
+def _coerce_bytes(payload: Any) -> bytes:
+    """Normalize payload to bytes."""
+    if isinstance(payload, bytes):
+        return payload
+    if isinstance(payload, str):
+        return payload.encode()
+    return str(payload).encode()
 
 
 class VisaDep(ABC):
@@ -41,9 +55,11 @@ class VisaDep(ABC):
 
 @dataclass
 class LocalVisaDep(VisaDep):
+    """Local VISA resource dependency using pyvisa."""
+
     resource: str
     timeout: float = 5.0
-    _inst: Any | None = None
+    _inst: Any = field(default=None, init=False, repr=False)
 
     def _ensure(self):
         if self._inst is None:
@@ -63,10 +79,10 @@ class LocalVisaDep(VisaDep):
 
     def read(self) -> str:
         payload = self._ensure().read()
-        return coerce_str(payload)
+        return _coerce_str(payload)
 
     def read_bytes(self, n: int) -> bytes:
-        return coerce_bytes(self._ensure().read_bytes(n))
+        return _coerce_bytes(self._ensure().read_bytes(n))
 
     def query(self, cmd: str) -> str:
         self.write(cmd)
@@ -86,50 +102,5 @@ class LocalVisaDep(VisaDep):
         if self._inst is not None:
             try:
                 self._inst.close()
-            except Exception:
-                pass
-
-
-class RemoteVisaDep(VisaDep):  # pragma: no cover - network usage
-    def __init__(self, uri: str) -> None:
-        self._uri = uri
-        self._proxy: Any | None = None
-
-    def _ensure(self):
-        if self._proxy is None:
-            try:
-                import Pyro5.api as pyro  # type: ignore
-            except Exception as e:  # noqa: BLE001
-                raise RuntimeError("Pyro5 not installed") from e
-            self._proxy = pyro.Proxy(self._uri)
-        return self._proxy
-
-    @property
-    def is_open(self) -> bool:
-        return self._proxy is not None
-
-    def write(self, cmd: str) -> None:
-        self._ensure().write(cmd)
-
-    def read(self) -> str:
-        return str(self._ensure().read())
-
-    def read_bytes(self, n: int) -> bytes:
-        payload = self._ensure().read_bytes(n)
-        return coerce_bytes(payload)
-
-    def query(self, cmd: str) -> str:
-        return str(self._ensure().query(cmd))
-
-    def clear(self) -> None:
-        self._ensure().clear()
-
-    def set_timeout(self, s: float) -> None:
-        self._ensure().set_timeout(float(s))
-
-    def close(self) -> None:
-        if self._proxy is not None:
-            try:
-                self._proxy.close()
             except Exception:
                 pass

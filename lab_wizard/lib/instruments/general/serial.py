@@ -1,18 +1,28 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Any
 
 from lab_wizard.lib.instruments.general.parent_child import Dependency
-from lab_wizard.lib.instruments.general.comm import LocalSerialBackend
-from lab_wizard.lib.utilities.codec import ensure_bytes, coerce_bytes
+
+try:
+    import serial as pyserial  # type: ignore
+except Exception:  # pragma: no cover - tests patch serial anyway
+    pyserial = None  # type: ignore
+
+
+def _ensure_bytes(data: bytes | str) -> bytes:
+    """Convert str to bytes if needed."""
+    if isinstance(data, bytes):
+        return data
+    return data.encode()
 
 
 class SerialDep(Dependency, ABC):
     """Abstract serial-like dependency API.
 
-    Concrete implementations: LocalSerialDep, RemoteSerialDep
+    Concrete implementation: LocalSerialDep
     """
 
     @property
@@ -39,69 +49,46 @@ class SerialDep(Dependency, ABC):
 
 @dataclass
 class LocalSerialDep(SerialDep):
+    """Local serial port dependency using pyserial."""
+
     port: str
     baudrate: int = 9600
     timeout: float = 1.0
-    _backend: LocalSerialBackend | None = None
+    _serial: Any = field(default=None, init=False, repr=False)
 
-    def _ensure(self) -> LocalSerialBackend:
-        if self._backend is None:
-            self._backend = LocalSerialBackend(
+    def _ensure(self) -> Any:
+        if self._serial is None:
+            if pyserial is None:  # pragma: no cover
+                raise RuntimeError("serial module not available")
+            self._serial = pyserial.Serial(
                 port=self.port, baudrate=self.baudrate, timeout=self.timeout
             )
-        return self._backend
+        return self._serial
 
     @property
     def is_open(self) -> bool:
-        b = self._ensure()
-        return b.is_open
+        return bool(self._serial and getattr(self._serial, "is_open", False))
 
     def write(self, data: bytes | str) -> int:
-        return self._ensure().write(ensure_bytes(data))
+        ser = self._ensure()
+        try:
+            ser.flush()
+        except Exception:  # pragma: no cover
+            pass
+        return ser.write(_ensure_bytes(data))  # type: ignore[no-any-return]
 
     def read(self, size: Optional[int] = None) -> bytes:
-        return self._ensure().read(size)
+        ser = self._ensure()
+        if size is None:
+            try:
+                return ser.read_all()
+            except Exception:  # pragma: no cover
+                return ser.read(9999)
+        return ser.read(size)
 
     def readline(self) -> bytes:
         return self._ensure().readline()
 
     def close(self) -> None:
-        if self._backend is not None:
-            self._backend.close()
-
-
-class RemoteSerialDep(SerialDep):  # pragma: no cover - network usage
-    def __init__(self, uri: str) -> None:
-        self._uri = uri
-        self._proxy: Any | None = None
-
-    def _ensure(self):
-        if self._proxy is None:
-            try:
-                import Pyro5.api as pyro  # type: ignore
-            except Exception as e:  # noqa: BLE001
-                raise RuntimeError("Pyro5 not installed") from e
-            self._proxy = pyro.Proxy(self._uri)
-        return self._proxy
-
-    @property
-    def is_open(self) -> bool:
-        return self._proxy is not None
-
-    def write(self, data: bytes | str) -> int:
-        return int(self._ensure().write(ensure_bytes(data)))
-
-    def read(self, size: Optional[int] = None) -> bytes:
-        payload = self._ensure().read(size)
-        return coerce_bytes(payload)
-
-    def readline(self) -> bytes:
-        payload = self._ensure().readline()
-        return coerce_bytes(payload)
-
-    def close(self) -> None:
-        if self._proxy is not None:
-            try:
-                self._proxy.close()
-            except Exception:
-                pass
+        if self._serial and getattr(self._serial, "is_open", False):
+            self._serial.close()

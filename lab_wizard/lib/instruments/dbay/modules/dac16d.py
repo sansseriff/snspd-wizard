@@ -11,7 +11,7 @@ from lab_wizard.lib.instruments.dbay.addons.vsource import (
 )
 from lab_wizard.lib.instruments.dbay.comm import Comm
 from lab_wizard.lib.instruments.dbay.state import Core
-from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams, ChannelProvider
 from lab_wizard.lib.instruments.general.vsource import VSource
 
 
@@ -121,7 +121,7 @@ class Dac16DState(BaseModel):
 # ---------------------------- Channel -----------------------------
 
 
-class Dac16D(Child[Comm, Dac16DParams], ChannelChild[_Dac16DChannel]):
+class Dac16D(Child[Comm, Dac16DParams], ChannelProvider[_Dac16DChannel]):
     def __init__(self, data: dict[str, Any], comm: Comm):
         self.comm = comm
         self.data = Dac16DState(**data)

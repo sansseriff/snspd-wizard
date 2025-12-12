@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """
 Config I/O utilities for loading, merging, and saving the multi-file instruments config
-into a single in-memory pydantic Params tree rooted at instruments (no ComputerParams).
+into a single in-memory pydantic Params tree rooted at instruments.
 
 Directory layout expected under a given config_dir (illustrative):
 

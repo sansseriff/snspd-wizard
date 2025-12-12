@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
-from lab_wizard.lib.utilities.codec import coerce_bytes
 
 try:  # pragma: no cover
     import requests  # type: ignore
@@ -34,6 +32,8 @@ class HttpDep(ABC):
 
 @dataclass
 class LocalHttpDep(HttpDep):
+    """Local HTTP dependency using requests library."""
+
     base_url: str
 
     @property
@@ -66,45 +66,3 @@ class LocalHttpDep(HttpDep):
 
     def close(self) -> None:
         return None
-
-
-class RemoteHttpDep(HttpDep):  # pragma: no cover - network usage
-    def __init__(self, uri: str) -> None:
-        self._uri = uri
-        self._proxy: Any | None = None
-
-    def _ensure(self):
-        if self._proxy is None:
-            try:
-                import Pyro5.api as pyro  # type: ignore
-            except Exception as e:  # noqa: BLE001
-                raise RuntimeError("Pyro5 not installed") from e
-            self._proxy = pyro.Proxy(self._uri)
-        return self._proxy
-
-    @property
-    def is_open(self) -> bool:
-        return self._proxy is not None
-
-    def get(self, path: str) -> bytes:
-        payload = self._ensure().get(path)
-        return coerce_bytes(payload)
-
-    def put(self, path: str, data: bytes | dict) -> bytes:
-        payload = self._ensure().put(path, data)
-        return coerce_bytes(payload)
-
-    def post(self, path: str, data: bytes | dict) -> bytes:
-        payload = self._ensure().post(path, data)
-        return coerce_bytes(payload)
-
-    def delete(self, path: str) -> bytes:
-        payload = self._ensure().delete(path)
-        return coerce_bytes(payload)
-
-    def close(self) -> None:
-        if self._proxy is not None:
-            try:
-                self._proxy.close()
-            except Exception:
-                pass

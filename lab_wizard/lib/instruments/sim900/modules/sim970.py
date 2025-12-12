@@ -1,6 +1,6 @@
 from __future__ import annotations
 from lab_wizard.lib.instruments.general.vsense import VSense
-from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams, ChannelChild
+from lab_wizard.lib.instruments.general.parent_child import Child, ChildParams, ChannelProvider
 from lab_wizard.lib.instruments.sim900.comm import Sim900ChildDep
 from lab_wizard.lib.instruments.sim900.deps import Sim900Dep
 import time
@@ -76,7 +76,7 @@ class Sim970Channel(VSense):
             raise ValueError(f"Could not parse voltage reading: {volts}")
 
 
-class Sim970(Child[Sim900Dep, Sim970Params], ChannelChild[Sim970Channel]):
+class Sim970(Child[Sim900Dep, Sim970Params], ChannelProvider[Sim970Channel]):
     """SIM970 module representing a 4-channel voltmeter.
 
     Channels are now exposed via the ``channels`` list and are not Pydantic

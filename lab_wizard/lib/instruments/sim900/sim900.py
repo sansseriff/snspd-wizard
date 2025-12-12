@@ -18,7 +18,6 @@ from lab_wizard.lib.instruments.general.parent_child import (
     Parent,
     ParentParams,
     Child,
-    # ChannelChildParams,
     ChildParams,
 )
 

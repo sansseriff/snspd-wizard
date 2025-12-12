@@ -264,7 +264,7 @@ class Child(Instrument, ABC, Generic[R, P_child]):
         """
 
 
-# ----------------------- ChannelChild Mixin -----------------------
+# ----------------------- ChannelProvider Mixin -----------------------
 
 ChanT = TypeVar("ChanT")
 
@@ -305,12 +305,11 @@ class ChannelProvider(ABC, Generic[ChanT]):
 __all__ = [
     "Dependency",
     "ChildParams",
-    # "ChannelChildParams",
     "ParentParams",
     "Parent",
     "ParentFactory",
     "Child",
-    "ChannelChild",
+    "ChannelProvider",
     "assert_params_init_alignment",
     "CanInstantiate",
 ]

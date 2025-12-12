@@ -29,8 +29,8 @@
 # # General abstract base classes and interfaces
 # from lib.instruments.general.parent_child import (
 #     Dependency, Instrument, Params2Inst, CanInstantiate,
-#     ChildParams, ChannelChildParams, ParentParams, Parent,
-#     ParentFactory, Child, ChannelChild
+#     ChildParams, ParentParams, Parent,
+#     ParentFactory, Child, ChannelProvider
 # )
 # from lib.instruments.general.vsource import VSource, StandInVSource
 # from lib.instruments.general.vsense import VSense, StandInVSense
@@ -94,8 +94,8 @@
 
 #     # Abstract base classes and interfaces
 #     "Dependency", "Instrument", "Params2Inst", "CanInstantiate",
-#     "ChildParams", "ChannelChildParams", "ParentParams", "Parent",
-#     "ParentFactory", "Child", "ChannelChild",
+#     "ChildParams", "ParentParams", "Parent",
+#     "ParentFactory", "Child", "ChannelProvider",
 #     "VSource", "StandInVSource",
 #     "VSense", "StandInVSense",
 #     "Counter", "StandInCounter",
