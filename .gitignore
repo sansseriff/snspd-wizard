@@ -4,3 +4,9 @@ pyleco/
 ref/
 
 !ref/snspd_measure_old/
+
+# Python bytecode / caches
+**/__pycache__/
+*.py[cod]
+
+
