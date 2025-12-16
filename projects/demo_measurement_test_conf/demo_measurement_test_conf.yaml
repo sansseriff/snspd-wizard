@@ -23,7 +23,7 @@ plotter:
     - 6
     dpi: 100
 instruments:
-  10.7.0.88:
+  10.7.0.88:8345:
     enabled: true
     type: dbay
     server_address: 10.7.0.88

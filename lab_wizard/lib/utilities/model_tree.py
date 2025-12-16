@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import List, Annotated, Literal
-from lab_wizard.lib.instruments.dbay.dbay import DBayParams
-from lab_wizard.lib.instruments.general.prologix_gpib import PrologixGPIBParams
+from pydantic import BaseModel, Field, model_validator
+from typing import Any, List, Annotated, Literal
+
+from lab_wizard.lib.utilities.params_discovery import load_params_class
 
 
 class FileSaver(BaseModel):
@@ -62,10 +62,31 @@ class Device(BaseModel):
 
 SaverUnion = Annotated[FileSaver | DatabaseSaver, Field(discriminator="type")]
 PlotterUnion = Annotated[WebPlotter | MplPlotter, Field(discriminator="type")]
-InstrumentUnion = Annotated[
-    DBayParams | PrologixGPIBParams, Field(discriminator="type")
-]
 ExpUnion = Annotated[IVCurveParams | PCRCurveParams, Field(discriminator="type")]
+
+
+def _parse_instrument_tree(data: dict[str, Any]) -> Any:
+    """
+    Recursively parse an instrument dict into the correct Params class.
+    
+    Uses dynamic discovery to find the right class based on the 'type' field.
+    Handles nested 'children' dicts recursively.
+    """
+    if not isinstance(data, dict) or "type" not in data:
+        return data
+    
+    type_str = data["type"]
+    
+    # Parse children recursively first
+    if "children" in data and isinstance(data["children"], dict):
+        parsed_children = {}
+        for key, child_data in data["children"].items():
+            parsed_children[key] = _parse_instrument_tree(child_data)
+        data = {**data, "children": parsed_children}
+    
+    # Load the Params class and instantiate
+    params_cls = load_params_class(type_str)
+    return params_cls(**data)
 
 
 class Exp(BaseModel):
@@ -73,7 +94,30 @@ class Exp(BaseModel):
     device: Device
     saver: dict[str, SaverUnion]
     plotter: dict[str, PlotterUnion]
-    instruments: dict[str, InstrumentUnion]
+    # Instruments are loaded dynamically via params_discovery - no static union needed
+    instruments: dict[str, BaseModel]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _parse_instruments_dynamically(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Parse instruments using dynamic discovery before Pydantic validation.
+        
+        This allows the YAML to contain any registered instrument type without
+        needing a static union that imports all Params classes upfront.
+        """
+        if "instruments" not in data or not isinstance(data["instruments"], dict):
+            return data
+        
+        parsed_instruments = {}
+        for key, inst_data in data["instruments"].items():
+            if isinstance(inst_data, dict) and "type" in inst_data:
+                parsed_instruments[key] = _parse_instrument_tree(inst_data)
+            else:
+                # Already parsed or not a dict - pass through
+                parsed_instruments[key] = inst_data
+        
+        return {**data, "instruments": parsed_instruments}
 
     def find_all_resources(self) -> dict[str, tuple[str, object]]:
         """Find all resources in the experiment tree.

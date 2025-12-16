@@ -35,22 +35,14 @@ Provided functions:
 - load_merge_save_instruments(config_dir, subset_instruments) -> merged dict
 """
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any,Dict,Optional,Tuple,Type,List,cast
+from typing import Any,Dict,Optional,Tuple,List,cast
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 
-# Import Params classes
-from lab_wizard.lib.instruments.general.prologix_gpib import PrologixGPIBParams
-from lab_wizard.lib.instruments.sim900.sim900 import Sim900Params
-from lab_wizard.lib.instruments.sim900.modules.sim928 import Sim928Params
-from lab_wizard.lib.instruments.sim900.modules.sim970 import Sim970Params
-from lab_wizard.lib.instruments.sim900.modules.sim921 import Sim921Params
-from lab_wizard.lib.instruments.dbay.dbay import DBayParams
-from lab_wizard.lib.instruments.dbay.modules.dac4d import Dac4DParams
-from lab_wizard.lib.instruments.dbay.modules.dac16d import Dac16DParams
+# Auto-discovery of Params classes (replaces manual TYPE_REGISTRY)
+from lab_wizard.lib.utilities.params_discovery import load_params_class, get_config_folder
 
 
 # ---------------------------- YAML helpers ----------------------------
@@ -134,36 +126,6 @@ def slug_to_key(slug: str) -> str:
     return "".join(out)
 
 
-# ---------------------------- Type registry ----------------------------
-
-@dataclass(frozen=True)
-class TypeInfo:
-    params_cls: Type[Any]
-    folder: Optional[str]  # subfolder under instruments for parent types
-
-
-TYPE_REGISTRY: Dict[str, TypeInfo] = {
-    # top-level instruments
-    "prologix_gpib": TypeInfo(PrologixGPIBParams, None),
-    "dbay": TypeInfo(DBayParams, "dbay"),
-    "sim900": TypeInfo(Sim900Params, "sim900"),
-    # sim900 modules
-    "sim928": TypeInfo(Sim928Params, "sim900/modules"),
-    "sim970": TypeInfo(Sim970Params, "sim900/modules"),
-    "sim921": TypeInfo(Sim921Params, "sim900/modules"),
-    # dbay modules
-    "dac4D": TypeInfo(Dac4DParams, "dbay/modules"),
-    "dac16D": TypeInfo(Dac16DParams, "dbay/modules"),
-}
-
-
-def _params_from_dict(type_str: str, data: Dict[str, Any]) -> Any:
-    info = TYPE_REGISTRY.get(type_str)
-    if info is None:
-        raise ValueError(f"Unknown instrument type '{type_str}' in config")
-    return info.params_cls(**data)
-
-
 # ---------------------------- Loading ----------------------------
 
 def _resolve_child_file(base_dir: Path, ref: str) -> Path:
@@ -190,7 +152,9 @@ def _load_node(
         raise ValueError(f"Missing/invalid 'type' in {node_path}")
     # Copy without children for instantiation; children processed separately
     shallow = {k: v for k, v in data.items() if k != "children"}
-    params = _params_from_dict(type_str, shallow)
+    # Use auto-discovery to load the Params class
+    params_cls = load_params_class(type_str)
+    params = params_cls(**shallow)
     return params, data
 
 
@@ -248,10 +212,6 @@ def load_instruments(
     # Top-level files (exclude known folders)
     for p in sorted(inst_dir.glob("*.yml")):
         params, raw = _load_node(base_dir, p, visited_paths)
-        print()
-        print("XXXXXXXX params in load_instruments", params)
-        print("YYYY raw in load_instruments", raw)
-        print()
 
         if getattr(params, "enabled", True) is False:
             continue
@@ -351,12 +311,14 @@ def merge_parent_params(base_parent: Any, delta_parent: Any) -> Any:
 
 def _choose_node_path(inst_dir: Path, type_str: str, parent_type: Optional[str], key: Optional[str], attribute: Optional[str]) -> Path:
     """Compute target YAML path for a node based on type and context."""
-    info = TYPE_REGISTRY.get(type_str)
-    if info is None:
-        # unknown types directly under instruments
+    # Use auto-discovery to get the config folder from the Params class's module path
+    try:
+        params_cls = load_params_class(type_str)
+        sub = get_config_folder(params_cls)
+    except ValueError:
+        # Unknown type - put directly under instruments/
         name = f"{type_str}.yml"
         return inst_dir / name
-    sub = info.folder
     # Filename preference: use attribute if provided, else type+key
     base_name = None
     if attribute:

@@ -27,9 +27,9 @@ type: dbay
 server_address: 10.7.0.4
 port: 8345
 children:
-  - kind: dac4D
+  "1":
+    kind: dac4D
     ref: dbay/modules/active_dac4d.yml
-    key: "1"
 """)
     
     _write(inst_dir / "dbay" / "modules" / "active_dac4d.yml", """
@@ -87,17 +87,17 @@ type: prologix_gpib
 port: /dev/ttyUSB0
 enabled: true
 children:
-  - kind: sim900
+  "5":
+    kind: sim900
     ref: sim900/sim900.yml
-    key: "5"
 """)
     
     _write(inst_dir / "sim900" / "sim900.yml", """
 type: sim900
 children:
-  - kind: sim928
+  "1":
+    kind: sim928
     ref: sim900/modules/sim928.yml
-    key: "1"
 """)
 
     _write(inst_dir / "sim900" / "modules" / "sim928.yml", """
